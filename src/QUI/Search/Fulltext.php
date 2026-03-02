@@ -546,7 +546,7 @@ class Fulltext extends QUI\QDOM
             $siteUrlParams = [];
 
             // site params
-            if (is_array($siteParams) && !empty($siteParams)) {
+            if (!empty($siteParams)) {
                 foreach ($siteParams as $urlKey => $urlValue) {
                     $urlValue = Orthos::clear($urlValue);
                     $urlKey = Orthos::clear($urlKey);

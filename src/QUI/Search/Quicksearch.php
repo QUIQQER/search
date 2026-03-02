@@ -65,10 +65,6 @@ class Quicksearch extends QUI\QDOM
             $Project
         );
 
-        if (!is_array($params)) {
-            $params = [];
-        }
-
         if (!isset($params['limit'])) {
             $params['limit'] = 10;
         }
@@ -249,7 +245,7 @@ class Quicksearch extends QUI\QDOM
         $siteUrlParams = [];
 
         // site params
-        if (is_array($siteParams) && !empty($siteParams)) {
+        if (!empty($siteParams)) {
             foreach ($siteParams as $key => $value) {
                 $key = Orthos::clearMySQL($key, false);
                 $value = Orthos::clearMySQL($value, false);
