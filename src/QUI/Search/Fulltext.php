@@ -124,13 +124,19 @@ class Fulltext extends QUI\QDOM
         $fieldList = self::getFieldList();
 
         $availableFields = [];
+        $fulltextAvailableFields = [];
 
         // filter
         foreach ($fieldList as $entry) {
             $type = mb_strtolower($entry['type']);
+            $field = Orthos::clearNoneCharacters($entry['field'], ['_']);
 
             if (mb_strpos($type, 'varchar') !== false || mb_strpos($type, 'text') !== false) {
-                $availableFields[] = $entry['field'];
+                $availableFields[] = $field;
+            }
+
+            if (!empty($entry['fulltext'])) {
+                $fulltextAvailableFields[] = $field;
             }
         }
 
@@ -154,6 +160,15 @@ class Fulltext extends QUI\QDOM
             $fields[$key] = Orthos::clearNoneCharacters($value, ['_']);
         }
 
+        $fulltextFields = [];
+        $fulltextAvailableFieldsTmp = array_flip($fulltextAvailableFields);
+
+        foreach ($fields as $field) {
+            if (isset($fulltextAvailableFieldsTmp[$field])) {
+                $fulltextFields[] = $field;
+            }
+        }
+
         // sql
         $count = [
             'name' => 8,
@@ -169,10 +184,10 @@ class Fulltext extends QUI\QDOM
 
         // relevance match
         $relevanceMatch = [];
-        $whereMatch = implode(',', $fields);
+        $whereMatch = [];
         $relevanceSum = 0;
 
-        foreach ($fields as $field) {
+        foreach ($fulltextFields as $field) {
             $matchCount = 9;
 
             if (isset($count[$field])) {
@@ -180,10 +195,12 @@ class Fulltext extends QUI\QDOM
             }
 
             $relevanceMatch[] = "MATCH($field) AGAINST (:search IN BOOLEAN MODE) * $matchCount";
+            $whereMatch[] = "MATCH($field) AGAINST (:search IN BOOLEAN MODE)";
             $relevanceSum = $relevanceSum + $matchCount;
         }
 
         $relevanceMatch = implode(' + ', $relevanceMatch);
+        $whereMatch = implode(' OR ', $whereMatch);
 
         // restrict search to certain site types
         $datatypes = $this->getAttribute('datatypes');
@@ -305,16 +322,19 @@ class Fulltext extends QUI\QDOM
         }
 
         // Relevance search (MATCH.. AGAINST)
+        $searchMode = 'like';
+
         if (
             $this->getAttribute('relevanceSearch')
             && mb_strlen($match) >= $minWordLength
+            && !empty($fulltextFields)
         ) {
             // filter $selectedFields
             $selectedFields = array_filter($selectedFields, function ($v) {
                 return !in_array($v, ['urlParameter', 'siteId']);
             });
 
-            $selectedFields = implode(',', $selectedFields);
+            $selectedFieldsSql = implode(',', $selectedFields);
 
             $query = "
                 SELECT
@@ -324,15 +344,15 @@ class Fulltext extends QUI\QDOM
                     custom_data,
                     origin,
                     100 / $relevanceSum * ($relevanceMatch) AS relevance,
-                    {$selectedFields}
+                    {$selectedFieldsSql}
                 FROM
                     {$table}
                 WHERE
-                    (MATCH ($whereMatch) AGAINST (:search IN BOOLEAN MODE))
+                    ({$whereMatch})
                     {$datatypeQuery}
                     {$whereFieldConstraints}
                 GROUP BY
-                    urlParameter,siteId,custom_id,custom_data,origin,{$selectedFields}
+                    urlParameter,siteId,custom_id,custom_data,origin,{$selectedFieldsSql}
                 ORDER BY
                     {$order}relevance DESC
             ";
@@ -345,104 +365,97 @@ class Fulltext extends QUI\QDOM
                 'type' => PDO::PARAM_STR
             ];
 //            }
+            $searchMode = 'fulltext';
         } else {
-            $where = [];
+            $likeQueryData = $this->buildLikeQuery(
+                $selectedFields,
+                $str,
+                $fields,
+                $table,
+                $whereFieldConstraints,
+                $datatypeQuery,
+                $order,
+                $binds
+            );
+            $query = $likeQueryData['query'];
+            $binds = $likeQueryData['binds'];
+        }
 
-            $searchFields = [
-                'name',
-                'title',
-                'short',
-                'data'
-            ];
+        Log::addDebug(
+            self::class . '::search() fields=' . json_encode($fields)
+            . ' relevance=' . ($this->getAttribute('relevanceSearch') ? '1' : '0')
+            . ' mode=' . $searchMode
+        );
 
-            $searchFields = array_merge($searchFields, $fields);
-            $searchTerms = explode(' ', $str);
+        $runQuery = function (string $query, array $binds) use ($PDO, $limit): array {
+            $selectQuery = "$query {$limit['limit']}";
 
-            foreach ($searchTerms as $k => $searchTerm) {
-                $whereOr = [];
-
-                foreach ($searchFields as $field) {
-                    $whereOr[] = $field . ' LIKE :search' . $k;
-                }
-
-                $binds['search' . $k] = [
-                    'value' => '%' . $searchTerm . '%',
-                    'type' => PDO::PARAM_STR
-                ];
-
-                $where[] = "(" . implode(" OR ", $whereOr) . ")";
-            }
-
-            if ($this->getAttribute('searchtype') === Search\Controls\Search::SEARCH_TYPE_AND) {
-                $where = implode(" AND ", $where);
-            } else {
-                $where = implode(" OR ", $where);
-            }
-
-            // filter $selectedFields
-            $selectedFields = array_filter($selectedFields, function ($v) {
-                return !in_array($v, ['e_date', 'urlParameter', 'siteId']);
-            });
-
-            $selectedFields = implode(',', $selectedFields);
-
-            $query = "
-            SELECT e_date,urlParameter,siteId,custom_id,custom_data,origin,{$selectedFields}
-            FROM
-                {$table}
-            WHERE
-                ($where)
-                {$whereFieldConstraints}
-                {$datatypeQuery}
-            GROUP BY
-                urlParameter,siteId,e_date,custom_id,custom_data,origin,{$selectedFields}
-            ORDER BY
-                {$order}e_date DESC
+            $countQuery = "
+                SELECT COUNT(*) as count
+                FROM ($query) as T
             ";
+
+            $Statement = $PDO->prepare($selectQuery);
+            $Statement->bindValue(
+                ':limit1',
+                $limit['prepare'][':limit1'][0],
+                PDO::PARAM_INT
+            );
+
+            $Statement->bindValue(
+                ':limit2',
+                $limit['prepare'][':limit2'][0],
+                PDO::PARAM_INT
+            );
+
+            foreach ($binds as $placeholder => $bind) {
+                $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
+            }
+
+            $Statement->execute();
+            $result = $Statement->fetchAll(PDO::FETCH_ASSOC);
+
+            $Statement = $PDO->prepare($countQuery);
+
+            foreach ($binds as $placeholder => $bind) {
+                $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
+            }
+
+            $Statement->execute();
+            $count = $Statement->fetchAll(PDO::FETCH_ASSOC);
+
+            return [
+                'list' => $result,
+                'count' => $count[0]['count']
+            ];
+        };
+
+        try {
+            return $runQuery($query, $binds);
+        } catch (\PDOException $Exception) {
+            $mysqlErrorCode = $Exception->errorInfo[1] ?? null;
+
+            if ($searchMode !== 'fulltext' || (int)$mysqlErrorCode !== 1191) {
+                throw $Exception;
+            }
+
+            $likeQueryData = $this->buildLikeQuery(
+                $selectedFields,
+                $str,
+                $fields,
+                $table,
+                $whereFieldConstraints,
+                $datatypeQuery,
+                $order,
+                $binds
+            );
+
+            Log::addWarning(
+                self::class . '::search() FULLTEXT unavailable (1191), using LIKE fallback'
+            );
+
+            return $runQuery($likeQueryData['query'], $likeQueryData['binds']);
         }
-
-        $selectQuery = "$query {$limit['limit']}";
-
-        $countQuery = "
-            SELECT COUNT(*) as count
-            FROM ($query) as T
-        ";
-
-        // search
-        $Statement = $PDO->prepare($selectQuery);
-        $Statement->bindValue(
-            ':limit1',
-            $limit['prepare'][':limit1'][0],
-            PDO::PARAM_INT
-        );
-
-        $Statement->bindValue(
-            ':limit2',
-            $limit['prepare'][':limit2'][0],
-            PDO::PARAM_INT
-        );
-
-        foreach ($binds as $placeholder => $bind) {
-            $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
-        }
-
-        $Statement->execute();
-        $result = $Statement->fetchAll(PDO::FETCH_ASSOC);
-
-        // count
-        $Statement = $PDO->prepare($countQuery);
-
-        foreach ($binds as $placeholder => $bind) {
-            $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
-        }
-
-        $Statement->execute();
-        $count = $Statement->fetchAll(PDO::FETCH_ASSOC);
-
-        return [
-            'list' => $result,
-            'count' => $count[0]['count']
-        ];
     }
 
     /**
@@ -454,6 +467,89 @@ class Fulltext extends QUI\QDOM
     protected function sanitizeSearchString(string $str): string
     {
         return Utils::sanitizeSearchString($str);
+    }
+
+    /**
+     * Build LIKE search query and binds
+     *
+     * @param array $selectedFields
+     * @param string $str
+     * @param array $fields
+     * @param string $table
+     * @param string $whereFieldConstraints
+     * @param string $datatypeQuery
+     * @param string $order
+     * @param array $binds
+     * @return array
+     */
+    private function buildLikeQuery(
+        array $selectedFields,
+        string $str,
+        array $fields,
+        string $table,
+        string $whereFieldConstraints,
+        string $datatypeQuery,
+        string $order,
+        array $binds
+    ): array {
+        $where = [];
+
+        $searchFields = [
+            'name',
+            'title',
+            'short',
+            'data'
+        ];
+
+        $searchFields = array_merge($searchFields, $fields);
+        $searchTerms = explode(' ', $str);
+        $likeBinds = $binds;
+
+        foreach ($searchTerms as $k => $searchTerm) {
+            $whereOr = [];
+
+            foreach ($searchFields as $field) {
+                $whereOr[] = $field . ' LIKE :search' . $k;
+            }
+
+            $likeBinds['search' . $k] = [
+                'value' => '%' . $searchTerm . '%',
+                'type' => PDO::PARAM_STR
+            ];
+
+            $where[] = "(" . implode(" OR ", $whereOr) . ")";
+        }
+
+        if ($this->getAttribute('searchtype') === Search\Controls\Search::SEARCH_TYPE_AND) {
+            $where = implode(" AND ", $where);
+        } else {
+            $where = implode(" OR ", $where);
+        }
+
+        $resultFields = array_filter($selectedFields, function ($v) {
+            return !in_array($v, ['e_date', 'urlParameter', 'siteId']);
+        });
+
+        $resultFields = implode(',', $resultFields);
+
+        $likeQuery = "
+            SELECT e_date,urlParameter,siteId,custom_id,custom_data,origin,{$resultFields}
+            FROM
+                {$table}
+            WHERE
+                ($where)
+                {$whereFieldConstraints}
+                {$datatypeQuery}
+            GROUP BY
+                urlParameter,siteId,e_date,custom_id,custom_data,origin,{$resultFields}
+            ORDER BY
+                {$order}e_date DESC
+        ";
+
+        return [
+            'query' => $likeQuery,
+            'binds' => $likeBinds
+        ];
     }
 
     /**
@@ -546,7 +642,7 @@ class Fulltext extends QUI\QDOM
             $siteUrlParams = [];
 
             // site params
-            if (is_array($siteParams) && !empty($siteParams)) {
+            if (!empty($siteParams)) {
                 foreach ($siteParams as $urlKey => $urlValue) {
                     $urlValue = Orthos::clear($urlValue);
                     $urlKey = Orthos::clear($urlKey);
