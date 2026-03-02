@@ -334,7 +334,7 @@ class Fulltext extends QUI\QDOM
                 return !in_array($v, ['urlParameter', 'siteId']);
             });
 
-            $selectedFields = implode(',', $selectedFields);
+            $selectedFieldsSql = implode(',', $selectedFields);
 
             $query = "
                 SELECT
@@ -344,7 +344,7 @@ class Fulltext extends QUI\QDOM
                     custom_data,
                     origin,
                     100 / $relevanceSum * ($relevanceMatch) AS relevance,
-                    {$selectedFields}
+                    {$selectedFieldsSql}
                 FROM
                     {$table}
                 WHERE
@@ -352,7 +352,7 @@ class Fulltext extends QUI\QDOM
                     {$datatypeQuery}
                     {$whereFieldConstraints}
                 GROUP BY
-                    urlParameter,siteId,custom_id,custom_data,origin,{$selectedFields}
+                    urlParameter,siteId,custom_id,custom_data,origin,{$selectedFieldsSql}
                 ORDER BY
                     {$order}relevance DESC
             ";
