@@ -616,9 +616,14 @@ class Search extends QUI\Control
             $settingsFieldsSelected = [];
         }
 
-        // if no available fields have been selected by the user (or the admin), use all fields
+        // if no fields have been selected, use configured available fields
+        // or fallback to all fields if no configuration exists
         if (empty($settingsFieldsSelected)) {
-            return $settingsFields;
+            if (!empty($settingsFields)) {
+                return $settingsFields;
+            }
+
+            return $allFields;
         }
 
         return $settingsFieldsSelected;
