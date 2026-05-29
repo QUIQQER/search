@@ -75,7 +75,7 @@ class Search extends QUI\Control
         $suggestSearch = '';
 
         if ($this->getAttribute('suggestSearch')) {
-            $suggestSearch = 'package/quiqqer/search/bin/controls/Suggest';
+            $suggestSearch = 'package/quiqqer/search/bin/controls/SuggestLazy';
         }
 
 
