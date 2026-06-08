@@ -100,9 +100,15 @@ class Quicksearch extends QUI\QDOM
             $siteTypesQuery .= ' )';
         }
 
-        if (version_compare(QUI::getDataBase()->getVersion(), '5.7.0') >= 0) {
+        // ANY_VALUE() satisfies MySQL 5.7+ ONLY_FULL_GROUP_BY mode, but MariaDB
+        // does not provide that function (and does not enable ONLY_FULL_GROUP_BY
+        // by default), so it must keep using the plain SELECT below.
+        $serverVersion = (string)$PDO->getAttribute(PDO::ATTR_SERVER_VERSION);
+        $isMariaDB = stripos($serverVersion, 'mariadb') !== false;
+
+        if (!$isMariaDB && version_compare(QUI::getDataBase()->getVersion(), '5.7.0') >= 0) {
             $query = "
-                SELECT ANY_VALUE(id) AS id, 
+                SELECT ANY_VALUE(id) AS id,
                     siteId, 
                     urlParameter, 
                     ANY_VALUE(data) AS data, 
