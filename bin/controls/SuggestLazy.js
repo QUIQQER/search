@@ -79,6 +79,18 @@ define('package/quiqqer/search/bin/controls/SuggestLazy', [
                     });
 
                     this.$Suggest.imports(Elm);
+
+                    // If the lazy load was triggered by typing, the original
+                    // keyup has already fired before Suggest was bound. Replay
+                    // a synthetic keyup so the first character triggers a
+                    // search instead of being silently dropped.
+                    if (Elm.value && Elm.value.trim() !== '') {
+                        Elm.dispatchEvent(new KeyboardEvent('keyup', {
+                            bubbles: true,
+                            cancelable: true
+                        }));
+                    }
+
                     resolve(this.$Suggest);
                 }, reject);
             });
