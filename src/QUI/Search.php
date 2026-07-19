@@ -6,16 +6,22 @@
 
 namespace QUI;
 
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Schema\TableDiff;
+use Doctrine\DBAL\Types\Type;
 use QUI;
 use QUI\Database\Exception;
 use QUI\Projects\Project;
 use QUI\Projects\Site;
 use QUI\Projects\Site\Edit as SiteEdit;
+use QUI\Search\Database;
 use QUI\Search\Fulltext;
 use QUI\Search\Quicksearch;
 use QUI\System\Log;
 
-use function is_object;
+use function array_keys;
 use function set_time_limit;
 use function strtotime;
 
@@ -50,7 +56,6 @@ class Search
     public function createFulltextSearch(Project $Project): void
     {
         $Fulltext = new Fulltext();
-        $Fulltext->clearSearchTable($Project); // @todo muss raus
 
         QUI::getEvents()->fireEvent(
             'searchFulltextCreate',
@@ -75,26 +80,28 @@ class Search
         ]);
 
         $Quicksearch = new Quicksearch();
-        $Quicksearch->clearSearchTable($Project);
+        $siteIdsToKeep = [];
 
         foreach ($list as $siteParams) {
+            $siteId = (int)$siteParams['id'];
+            $siteIdsToKeep[$siteId] = true;
+
             try {
                 set_time_limit(0);
 
-                $siteId = (int)$siteParams['id'];
                 $Site = new SiteEdit($Project, $siteId);
 
-                if (!$Site->getAttribute('active')) {
+                if (
+                    !$Site->getAttribute('active')
+                    || $Site->getAttribute('deleted')
+                    || $Site->getAttribute('quiqqer.settings.search.not.indexed')
+                ) {
+                    unset($siteIdsToKeep[$siteId]);
+                    Quicksearch::removeSiteEntries($Project, $siteId);
                     continue;
                 }
 
-                if ($Site->getAttribute('deleted')) {
-                    continue;
-                }
-
-                if ($Site->getAttribute('quiqqer.settings.search.not.indexed')) {
-                    continue;
-                }
+                Quicksearch::removeSiteEntries($Project, $siteId);
 
                 $Quicksearch->setEntries($Project, $siteId, [
                     $Site->getAttribute('name') . ' ' . $Site->getAttribute('title'),
@@ -103,6 +110,11 @@ class Search
                 Log::writeException($Exception);
             }
         }
+
+        Database::removeObsoleteSiteEntries(
+            QUI::getDBProjectTableName(self::TABLE_SEARCH_QUICK, $Project),
+            array_keys($siteIdsToKeep)
+        );
 
         QUI::getEvents()->fireEvent(
             'searchQuicksearchCreate',
@@ -116,9 +128,19 @@ class Search
      */
     public static function setup(): void
     {
+        try {
+            self::setupDatabaseSchema();
+        } catch (\Doctrine\DBAL\Exception $Exception) {
+            throw Database::createException($Exception);
+        }
+    }
+
+    private static function setupDatabaseSchema(): void
+    {
         QUI\Cache\Manager::clear('quiqqer/search');
 
-        $Table = QUI::getDataBase()->table();
+        $SchemaManager = QUI::getSchemaManager();
+        $isMySQL = QUI::getDataBaseConnection()->getDatabasePlatform() instanceof AbstractMySQLPlatform;
         $Manager = QUI::getProjectManager();
         $projects = $Manager->getProjects(true);
 
@@ -128,7 +150,7 @@ class Search
         $index = [];
 
         foreach ($fieldList as $fieldEntry) {
-            $fields[$fieldEntry['field']] = $fieldEntry['type'];
+            $fields[$fieldEntry['field']] = self::getDoctrineColumnDefinition($fieldEntry['type']);
 
             if ($fieldEntry['fulltext']) {
                 $fulltext[] = [
@@ -156,15 +178,59 @@ class Search
                     $Project
                 );
 
-                $Table->addColumn($table, $fields);
+                if (!$SchemaManager->tablesExist([$table])) {
+                    continue;
+                }
 
-                foreach ($fulltext as $field) {
-                    $Table->setFulltext($table, $field['field']);
+                $Table = $SchemaManager->introspectTable($table);
+                $addedColumns = [];
+
+                foreach ($fields as $fieldName => $definition) {
+                    if ($Table->hasColumn($fieldName)) {
+                        continue;
+                    }
+
+                    $addedColumns[] = new Column(
+                        $fieldName,
+                        Type::getType($definition['type']),
+                        $definition['options']
+                    );
+                }
+
+                if (!empty($addedColumns)) {
+                    $SchemaManager->alterTable(new TableDiff($Table, addedColumns: $addedColumns));
+                    $Table = $SchemaManager->introspectTable($table);
+                }
+
+                if ($isMySQL) {
+                    foreach ($fulltext as $field) {
+                        if (self::hasColumnIndex($Table, $field['field'], true)) {
+                            continue;
+                        }
+
+                        $indexName = self::getIndexName('search_fulltext', $field['field']);
+                        $Table->addIndex([$field['field']], $indexName, ['fulltext']);
+                        $SchemaManager->alterTable(new TableDiff(
+                            $Table,
+                            addedIndexes: [$Table->getIndex($indexName)]
+                        ));
+                        $Table = $SchemaManager->introspectTable($table);
+                    }
                 }
 
                 foreach ($index as $field) {
+                    if (self::hasColumnIndex($Table, $field['field'])) {
+                        continue;
+                    }
+
                     try {
-                        $Table->setIndex($table, $field['field']);
+                        $indexName = self::getIndexName('search_index', $field['field']);
+                        $Table->addIndex([$field['field']], $indexName);
+                        $SchemaManager->alterTable(new TableDiff(
+                            $Table,
+                            addedIndexes: [$Table->getIndex($indexName)]
+                        ));
+                        $Table = $SchemaManager->introspectTable($table);
                     } catch (\Exception $Exception) {
                         QUI\System\Log::addWarning(
                             self::class . ' :: setup() -> Could not create Index for Fulltext'
@@ -176,6 +242,70 @@ class Search
                 }
             }
         }
+    }
+
+    /**
+     * @return array{type: string, options: array<string, mixed>}
+     */
+    private static function getDoctrineColumnDefinition(string $definition): array
+    {
+        $definition = strtolower(trim($definition));
+        $options = ['notnull' => str_contains($definition, 'not null')];
+
+        if (preg_match('/^(?:var)?char\s*\((\d+)\)/', $definition, $matches)) {
+            $options['length'] = (int)$matches[1];
+
+            return ['type' => 'string', 'options' => $options];
+        }
+
+        if (preg_match('/^(?:decimal|numeric)\s*\((\d+)\s*,\s*(\d+)\)/', $definition, $matches)) {
+            $options['precision'] = (int)$matches[1];
+            $options['scale'] = (int)$matches[2];
+
+            return ['type' => 'decimal', 'options' => $options];
+        }
+
+        $type = preg_replace('/[\s(].*$/', '', $definition);
+
+        return [
+            'type' => match ($type) {
+                'bigint' => 'bigint',
+                'tinyint', 'smallint' => 'smallint',
+                'int', 'integer', 'mediumint' => 'integer',
+                'float', 'double', 'real' => 'float',
+                'bool', 'boolean' => 'boolean',
+                'date', 'datetime', 'time', 'json', 'guid', 'binary', 'blob' => $type,
+                'timestamp' => 'datetime',
+                default => 'text'
+            },
+            'options' => $options
+        ];
+    }
+
+    private static function hasColumnIndex(Table $Table, string $field, bool $fulltext = false): bool
+    {
+        foreach ($Table->getIndexes() as $Index) {
+            if ($Index->getColumns() !== [$field]) {
+                continue;
+            }
+
+            if ($fulltext && !$Index->hasFlag('fulltext')) {
+                continue;
+            }
+
+            if (!$fulltext && $Index->hasFlag('fulltext')) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static function getIndexName(string $prefix, string $field): string
+    {
+        return substr($prefix . '_' . $field, 0, 50) . '_' . substr(sha1($field), 0, 8);
     }
 
     /**
@@ -192,24 +322,8 @@ class Search
     {
         $Project = $Site->getProject();
 
-        $tableSearchFull = QUI::getDBProjectTableName(
-            self::TABLE_SEARCH_FULL,
-            $Project
-        );
-
-        $tableQuicksearch = QUI::getDBProjectTableName(
-            self::TABLE_SEARCH_QUICK,
-            $Project
-        );
-
-        // remove entries from tables
-        QUI::getDataBase()->delete($tableSearchFull, [
-            'siteId' => $Site->getId()
-        ]);
-
-        QUI::getDataBase()->delete($tableQuicksearch, [
-            'siteId' => $Site->getId()
-        ]);
+        Fulltext::removeSiteEntries($Project, $Site->getId());
+        Quicksearch::removeSiteEntries($Project, $Site->getId());
     }
 
     /**
@@ -226,15 +340,12 @@ class Search
             self::setSiteDefaultSettings($Site);
         }
 
-        if (!$Site->getAttribute('active')) {
-            return;
-        }
-
-        if ($Site->getAttribute('deleted')) {
-            return;
-        }
-
-        if ($Site->getAttribute('quiqqer.settings.search.not.indexed')) {
+        if (
+            !$Site->getAttribute('active')
+            || $Site->getAttribute('deleted')
+            || $Site->getAttribute('quiqqer.settings.search.not.indexed')
+        ) {
+            self::onSiteDeactivate($Site);
             return;
         }
 
@@ -293,12 +404,16 @@ class Search
         }
 
         $selectedFields = ['name', 'title', 'short', 'data'];
-        $Site = $Site->getEdit();
+        $Edit = $Site->getEdit();
 
-        $Site->setAttribute('quiqqer.settings.search.list.fields', []);
-        $Site->setAttribute('quiqqer.settings.search.list.fields.selected', $selectedFields);
+        if (!$Edit instanceof SiteEdit) {
+            throw new QUI\Exception('Could not obtain editable search site.');
+        }
 
-        $Site->save();
+        $Edit->setAttribute('quiqqer.settings.search.list.fields', []);
+        $Edit->setAttribute('quiqqer.settings.search.list.fields.selected', $selectedFields);
+
+        $Edit->save();
     }
 
     /**
@@ -311,8 +426,12 @@ class Search
     {
         $Project = $Template->getAttribute('Project');
 
-        if (!is_object($Project)) {
+        if (!$Project instanceof Project) {
             $Project = QUI::getProjectManager()->get();
+        }
+
+        if (!$Project instanceof Project) {
+            return;
         }
 
         $result = $Project->getSites([
@@ -338,21 +457,39 @@ class Search
             $start = $host . $start;
         }
 
-        $Template->extendHeader(
-            '
-            <script type="application/ld+json">
-            {
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                "url": "' . $start . '",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": "' . $searchUrl . '?search={search}",
-                    "query-input": "required name=search"
-                }
-            }
-            </script>
-            '
+        $jsonLd = self::buildWebsiteSearchJsonLd($start, $searchUrl);
+
+        if ($jsonLd === null) {
+            return;
+        }
+
+        $Template->extendHeader('<script type="application/ld+json">' . $jsonLd . '</script>');
+    }
+
+    /**
+     * Build script-safe structured data for the website search action.
+     */
+    protected static function buildWebsiteSearchJsonLd(string $start, string $searchUrl): ?string
+    {
+        $json = json_encode(
+            [
+                '@context' => 'https://schema.org',
+                '@type' => 'WebSite',
+                'url' => $start,
+                'potentialAction' => [
+                    '@type' => 'SearchAction',
+                    'target' => $searchUrl . '?search={search}',
+                    'query-input' => 'required name=search'
+                ]
+            ],
+            JSON_UNESCAPED_SLASHES
+            | JSON_UNESCAPED_UNICODE
+            | JSON_HEX_TAG
+            | JSON_HEX_AMP
+            | JSON_HEX_APOS
+            | JSON_HEX_QUOT
         );
+
+        return $json === false ? null : $json;
     }
 }

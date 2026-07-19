@@ -10,7 +10,9 @@ namespace QUI\Search;
 
 use DOMElement;
 use DOMXPath;
-use PDO;
+use Doctrine\DBAL\Exception\DriverException;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Query\QueryBuilder;
 use QUI;
 use QUI\Database\Exception;
 use QUI\ExceptionStack;
@@ -19,6 +21,7 @@ use QUI\Projects\Site\Edit as SiteEdit;
 use QUI\Search;
 use QUI\Search\Items\CustomSearchItem;
 use QUI\System\Log;
+use QUI\Utils\Doctrine;
 use QUI\Utils\Security\Orthos;
 
 use function array_filter;
@@ -26,23 +29,20 @@ use function array_flip;
 use function array_keys;
 use function array_merge;
 use function count;
-use function current;
 use function explode;
 use function file_exists;
-use function get_class;
 use function implode;
 use function in_array;
 use function is_array;
-use function is_int;
-use function is_integer;
 use function is_string;
 use function json_encode;
-use function key;
 use function mb_strlen;
 use function mb_strpos;
 use function mb_strtolower;
+use function preg_split;
 use function set_time_limit;
 use function str_replace;
+use function strtoupper;
 use function strtotime;
 use function trim;
 
@@ -54,10 +54,17 @@ use function trim;
  */
 class Fulltext extends QUI\QDOM
 {
+    private const RELEVANCE_WEIGHTS = [
+        'name' => 8,
+        'title' => 10,
+        'short' => 5,
+        'data' => 3
+    ];
+
     /**
      * Constructor
      *
-     * @param array $params - Attributes
+     * @param array<string, mixed> $params Attributes
      */
     public function __construct(array $params = [])
     {
@@ -85,10 +92,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param string $str - search string
      *
-     * @return array array(
-     *        'list'   => array list of results
-     *        'count'  => count of results
-     * )
+     * @return array{list: list<array<string, mixed>>, count: mixed}
      *
      * @throws QUI\Exception
      */
@@ -99,11 +103,15 @@ class Fulltext extends QUI\QDOM
         $attrLimit = $this->getAttribute('limit');
         $attrFields = $this->getAttribute('fields');
 
-        if (get_class($Project) !== 'QUI\Projects\Project') {
+        if (!$Project instanceof Project) {
             $Project = QUI::getProjectManager()->get();
         }
 
-        if (!$attrLimit || is_integer($attrLimit)) {
+        if (!$Project instanceof Project) {
+            throw new QUI\Exception('Fulltext search requires a project context.');
+        }
+
+        if (!$attrLimit) {
             $attrLimit = 10;
         }
 
@@ -170,16 +178,8 @@ class Fulltext extends QUI\QDOM
         }
 
         // sql
-        $count = [
-            'name' => 8,
-            'title' => 10,
-            'short' => 5,
-            'content' => 3
-        ];
-
-        $PDO = QUI::getPDO();
+        $Connection = QUI::getDataBaseConnection();
         $table = QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project);
-        $limit = QUI\Database\DB::createQueryLimit($attrLimit);
         $binds = [];
 
         // relevance match
@@ -188,11 +188,8 @@ class Fulltext extends QUI\QDOM
         $relevanceSum = 0;
 
         foreach ($fulltextFields as $field) {
-            $matchCount = 9;
-
-            if (isset($count[$field])) {
-                $matchCount = $count[$field];
-            }
+            $matchCount = self::RELEVANCE_WEIGHTS[$field] ?? 9;
+            $field = Doctrine::quoteIdentifier($field);
 
             $relevanceMatch[] = "MATCH($field) AGAINST (:search IN BOOLEAN MODE) * $matchCount";
             $whereMatch[] = "MATCH($field) AGAINST (:search IN BOOLEAN MODE)";
@@ -211,22 +208,14 @@ class Fulltext extends QUI\QDOM
                 $datatypes = [$datatypes];
             }
 
-            $datatypeQuery = ' AND (';
+            $datatypeExpressions = [];
 
             for ($i = 0, $len = count($datatypes); $i < $len; $i++) {
-                $datatypeQuery .= ' datatype LIKE :type' . $i;
-
-                if ($len - 1 > $i) {
-                    $datatypeQuery .= ' OR ';
-                }
-
-                $binds['type' . $i] = [
-                    'value' => $datatypes[$i],
-                    'type' => PDO::PARAM_STR
-                ];
+                $datatypeExpressions[] = Doctrine::quoteIdentifier('datatype') . ' LIKE :type' . $i;
+                $binds['type' . $i] = $datatypes[$i];
             }
 
-            $datatypeQuery .= ' )';
+            $datatypeQuery = '(' . implode(' OR ', $datatypeExpressions) . ')';
         }
 
         // field constraints
@@ -259,18 +248,12 @@ class Fulltext extends QUI\QDOM
                         && !empty($value['type'])
                     ) {
                         if ($value['type'] === 'LIKE') {
-                            $constraintEntriesOr[] = $field . ' LIKE :constraint' . $i;
-                            $binds['constraint' . $i] = [
-                                'value' => '%' . $value['value'] . '%',
-                                'type' => PDO::PARAM_STR
-                            ];
+                            $constraintEntriesOr[] = Doctrine::quoteIdentifier($field) . ' LIKE :constraint' . $i;
+                            $binds['constraint' . $i] = '%' . $value['value'] . '%';
                         }
                     } else {
-                        $constraintEntriesOr[] = $field . ' = :constraint' . $i;
-                        $binds['constraint' . $i] = [
-                            'value' => $value,
-                            'type' => PDO::PARAM_STR
-                        ];
+                        $constraintEntriesOr[] = Doctrine::quoteIdentifier($field) . ' = :constraint' . $i;
+                        $binds['constraint' . $i] = $value;
                     }
 
                     $i++;
@@ -282,44 +265,75 @@ class Fulltext extends QUI\QDOM
             }
 
             if (!empty($fieldConstraintsEntries)) {
-                $whereFieldConstraints = ' AND (' . implode(" AND ", $fieldConstraintsEntries) . ')';
+                $whereFieldConstraints = '(' . implode(" AND ", $fieldConstraintsEntries) . ')';
             }
         }
 
-        $minWordLength = QUI::getPackage('quiqqer/search')
-            ->getConfig()
-            ->get('search', 'booleanSearchMaxLength');
-
-        // fallback
-        if (!$minWordLength) {
-            $minWordLength = 3;
-        }
+        $Config = QUI::getPackage('quiqqer/search')->getConfig();
+        $minWordLength = $Config?->get('search', 'booleanSearchMaxLength') ?: 3;
 
         $match = str_replace(['*', '+'], '', $search);
 
         // order Fields
         $orderFields = $this->getAttribute('orderFields');
-        $order = '';
+        $order = [];
 
         if (is_array($orderFields) && !empty($orderFields)) {
-            $order = implode(',', $orderFields) . ',';
+            $sortableFields = [];
+
+            foreach ($fieldList as $entry) {
+                $field = Orthos::clearNoneCharacters($entry['field'], ['_']);
+                $sortableFields[$field] = true;
+            }
+
+            $validatedOrderFields = [];
 
             foreach ($orderFields as $orderField) {
-                $orderFieldParts = explode(' ', $orderField);
-                $orderField = current($orderFieldParts);
+                if (!is_string($orderField)) {
+                    continue;
+                }
+
+                $orderFieldParts = preg_split('/\s+/', trim($orderField));
+
+                if (
+                    $orderFieldParts === false
+                    || count($orderFieldParts) < 1
+                    || count($orderFieldParts) > 2
+                ) {
+                    continue;
+                }
+
+                $orderField = $orderFieldParts[0];
+
+                if (!isset($sortableFields[$orderField])) {
+                    continue;
+                }
+
+                $direction = '';
+
+                if (isset($orderFieldParts[1])) {
+                    $direction = strtoupper($orderFieldParts[1]);
+
+                    if (!in_array($direction, ['ASC', 'DESC'], true)) {
+                        continue;
+                    }
+                }
+
+                $validatedOrderFields[] = [
+                    'field' => Doctrine::quoteIdentifier($orderField),
+                    'direction' => $direction
+                ];
 
                 if (!in_array($orderField, $availableFields)) {
                     $availableFields[] = $orderField;
                 }
             }
+
+            $order = $validatedOrderFields;
         }
 
         // query
-        if (is_int(key($availableFields))) {
-            $selectedFields = $availableFields;
-        } else {
-            $selectedFields = array_keys($availableFields);
-        }
+        $selectedFields = $availableFields;
 
         // Relevance search (MATCH.. AGAINST)
         $searchMode = 'like';
@@ -328,46 +342,49 @@ class Fulltext extends QUI\QDOM
             $this->getAttribute('relevanceSearch')
             && mb_strlen($match) >= $minWordLength
             && !empty($fulltextFields)
+            && $Connection->getDatabasePlatform() instanceof AbstractMySQLPlatform
         ) {
             // filter $selectedFields
             $selectedFields = array_filter($selectedFields, function ($v) {
                 return !in_array($v, ['urlParameter', 'siteId']);
             });
 
-            $selectedFieldsSql = implode(',', $selectedFields);
+            $selectedFieldsSql = array_map(
+                static fn(string $field): string => Doctrine::quoteIdentifier($field),
+                $selectedFields
+            );
 
-            $query = "
-                SELECT
-                    siteId,
-                    urlParameter,
-                    custom_id,
-                    custom_data,
-                    origin,
-                    100 / $relevanceSum * ($relevanceMatch) AS relevance,
-                    {$selectedFieldsSql}
-                FROM
-                    {$table}
-                WHERE
-                    ({$whereMatch})
-                    {$datatypeQuery}
-                    {$whereFieldConstraints}
-                GROUP BY
-                    urlParameter,siteId,custom_id,custom_data,origin,{$selectedFieldsSql}
-                ORDER BY
-                    {$order}relevance DESC
-            ";
+            $groupFields = array_merge([
+                Doctrine::quoteIdentifier('urlParameter'),
+                Doctrine::quoteIdentifier('siteId'),
+                Doctrine::quoteIdentifier('custom_id'),
+                Doctrine::quoteIdentifier('custom_data'),
+                Doctrine::quoteIdentifier('origin')
+            ], $selectedFieldsSql);
+
+            $query = QUI::getQueryBuilder();
+            $query
+                ->select(
+                    Doctrine::quoteIdentifier('siteId'),
+                    Doctrine::quoteIdentifier('urlParameter'),
+                    Doctrine::quoteIdentifier('custom_id'),
+                    Doctrine::quoteIdentifier('custom_data'),
+                    Doctrine::quoteIdentifier('origin'),
+                    "100 / $relevanceSum * ($relevanceMatch) AS relevance",
+                    ...$selectedFieldsSql
+                )
+                ->from(Doctrine::quoteIdentifier($table))
+                ->where("($whereMatch)")
+                ->groupBy(...$groupFields);
+
+            $this->applySearchFilters($query, $datatypeQuery, $whereFieldConstraints, $binds);
+            $this->applySearchOrder($query, $order, 'relevance', 'DESC');
 
             $search = str_replace('*', '', $search);
-
-//            if (strlen($search) > 2 || $search == '%%') {
-            $binds['search'] = [
-                'value' => $search,
-                'type' => PDO::PARAM_STR
-            ];
-//            }
+            $query->setParameter('search', $search);
             $searchMode = 'fulltext';
         } else {
-            $likeQueryData = $this->buildLikeQuery(
+            $query = $this->buildLikeQuery(
                 $selectedFields,
                 $str,
                 $fields,
@@ -377,8 +394,6 @@ class Fulltext extends QUI\QDOM
                 $order,
                 $binds
             );
-            $query = $likeQueryData['query'];
-            $binds = $likeQueryData['binds'];
         }
 
         Log::addDebug(
@@ -387,59 +402,14 @@ class Fulltext extends QUI\QDOM
             . ' mode=' . $searchMode
         );
 
-        $runQuery = function (string $query, array $binds) use ($PDO, $limit): array {
-            $selectQuery = "$query {$limit['limit']}";
-
-            $countQuery = "
-                SELECT COUNT(*) as count
-                FROM ($query) as T
-            ";
-
-            $Statement = $PDO->prepare($selectQuery);
-            $Statement->bindValue(
-                ':limit1',
-                $limit['prepare'][':limit1'][0],
-                PDO::PARAM_INT
-            );
-
-            $Statement->bindValue(
-                ':limit2',
-                $limit['prepare'][':limit2'][0],
-                PDO::PARAM_INT
-            );
-
-            foreach ($binds as $placeholder => $bind) {
-                $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
-            }
-
-            $Statement->execute();
-            $result = $Statement->fetchAll(PDO::FETCH_ASSOC);
-
-            $Statement = $PDO->prepare($countQuery);
-
-            foreach ($binds as $placeholder => $bind) {
-                $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
-            }
-
-            $Statement->execute();
-            $count = $Statement->fetchAll(PDO::FETCH_ASSOC);
-
-            return [
-                'list' => $result,
-                'count' => $count[0]['count']
-            ];
-        };
-
         try {
-            return $runQuery($query, $binds);
-        } catch (\PDOException $Exception) {
-            $mysqlErrorCode = $Exception->errorInfo[1] ?? null;
-
-            if ($searchMode !== 'fulltext' || (int)$mysqlErrorCode !== 1191) {
-                throw $Exception;
+            return $this->executeSearchQuery($query, $attrLimit);
+        } catch (DriverException $Exception) {
+            if ($searchMode !== 'fulltext' || $Exception->getCode() !== 1191) {
+                throw Database::createException($Exception);
             }
 
-            $likeQueryData = $this->buildLikeQuery(
+            $query = $this->buildLikeQuery(
                 $selectedFields,
                 $str,
                 $fields,
@@ -454,7 +424,13 @@ class Fulltext extends QUI\QDOM
                 self::class . '::search() FULLTEXT unavailable (1191), using LIKE fallback'
             );
 
-            return $runQuery($likeQueryData['query'], $likeQueryData['binds']);
+            try {
+                return $this->executeSearchQuery($query, $attrLimit);
+            } catch (\Doctrine\DBAL\Exception $Exception) {
+                throw Database::createException($Exception);
+            }
+        } catch (\Doctrine\DBAL\Exception $Exception) {
+            throw Database::createException($Exception);
         }
     }
 
@@ -472,15 +448,14 @@ class Fulltext extends QUI\QDOM
     /**
      * Build LIKE search query and binds
      *
-     * @param array $selectedFields
+     * @param array<mixed> $selectedFields
      * @param string $str
-     * @param array $fields
+     * @param list<string> $fields
      * @param string $table
      * @param string $whereFieldConstraints
      * @param string $datatypeQuery
-     * @param string $order
-     * @param array $binds
-     * @return array
+     * @param list<array{field: string, direction: string}> $order
+     * @param array<string, mixed> $binds
      */
     private function buildLikeQuery(
         array $selectedFields,
@@ -489,9 +464,9 @@ class Fulltext extends QUI\QDOM
         string $table,
         string $whereFieldConstraints,
         string $datatypeQuery,
-        string $order,
+        array $order,
         array $binds
-    ): array {
+    ): QueryBuilder {
         $where = [];
 
         $searchFields = [
@@ -509,13 +484,10 @@ class Fulltext extends QUI\QDOM
             $whereOr = [];
 
             foreach ($searchFields as $field) {
-                $whereOr[] = $field . ' LIKE :search' . $k;
+                $whereOr[] = Doctrine::quoteIdentifier($field) . ' LIKE :search' . $k;
             }
 
-            $likeBinds['search' . $k] = [
-                'value' => '%' . $searchTerm . '%',
-                'type' => PDO::PARAM_STR
-            ];
+            $likeBinds['search' . $k] = '%' . $searchTerm . '%';
 
             $where[] = "(" . implode(" OR ", $whereOr) . ")";
         }
@@ -530,25 +502,105 @@ class Fulltext extends QUI\QDOM
             return !in_array($v, ['e_date', 'urlParameter', 'siteId']);
         });
 
-        $resultFields = implode(',', $resultFields);
+        $resultFields = array_map(
+            static fn(string $field): string => Doctrine::quoteIdentifier($field),
+            $resultFields
+        );
 
-        $likeQuery = "
-            SELECT e_date,urlParameter,siteId,custom_id,custom_data,origin,{$resultFields}
-            FROM
-                {$table}
-            WHERE
-                ($where)
-                {$whereFieldConstraints}
-                {$datatypeQuery}
-            GROUP BY
-                urlParameter,siteId,e_date,custom_id,custom_data,origin,{$resultFields}
-            ORDER BY
-                {$order}e_date DESC
-        ";
+        $groupFields = array_merge([
+            Doctrine::quoteIdentifier('urlParameter'),
+            Doctrine::quoteIdentifier('siteId'),
+            Doctrine::quoteIdentifier('e_date'),
+            Doctrine::quoteIdentifier('custom_id'),
+            Doctrine::quoteIdentifier('custom_data'),
+            Doctrine::quoteIdentifier('origin')
+        ], $resultFields);
+
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->select(
+                Doctrine::quoteIdentifier('e_date'),
+                Doctrine::quoteIdentifier('urlParameter'),
+                Doctrine::quoteIdentifier('siteId'),
+                Doctrine::quoteIdentifier('custom_id'),
+                Doctrine::quoteIdentifier('custom_data'),
+                Doctrine::quoteIdentifier('origin'),
+                ...$resultFields
+            )
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where("($where)")
+            ->groupBy(...$groupFields);
+
+        $this->applySearchFilters($QueryBuilder, $datatypeQuery, $whereFieldConstraints, $likeBinds);
+        $this->applySearchOrder($QueryBuilder, $order, Doctrine::quoteIdentifier('e_date'), 'DESC');
+
+        return $QueryBuilder;
+    }
+
+    /**
+     * @param array<string, mixed> $binds
+     */
+    private function applySearchFilters(
+        QueryBuilder $QueryBuilder,
+        string $datatypeQuery,
+        string $whereFieldConstraints,
+        array $binds
+    ): void {
+        if ($whereFieldConstraints !== '') {
+            $QueryBuilder->andWhere($whereFieldConstraints);
+        }
+
+        if ($datatypeQuery !== '') {
+            $QueryBuilder->andWhere($datatypeQuery);
+        }
+
+        foreach ($binds as $parameter => $value) {
+            $QueryBuilder->setParameter($parameter, $value);
+        }
+    }
+
+    /**
+     * @param list<array{field: string, direction: string}> $order
+     */
+    private function applySearchOrder(
+        QueryBuilder $QueryBuilder,
+        array $order,
+        string $fallbackField,
+        string $fallbackDirection
+    ): void {
+        foreach ($order as $orderEntry) {
+            $QueryBuilder->addOrderBy(
+                $orderEntry['field'],
+                $orderEntry['direction'] ?: null
+            );
+        }
+
+        $QueryBuilder->addOrderBy($fallbackField, $fallbackDirection);
+    }
+
+    /**
+     * @return array{list: list<array<string, mixed>>, count: mixed}
+     */
+    private function executeSearchQuery(QueryBuilder $QueryBuilder, mixed $limit): array
+    {
+        $ListQuery = clone $QueryBuilder;
+        Doctrine::applyLimit($ListQuery, $limit);
+
+        $CountSourceQuery = clone $QueryBuilder;
+        $CountSourceQuery->resetOrderBy();
+
+        $CountQuery = QUI::getQueryBuilder();
+        $CountQuery
+            ->select('COUNT(*)')
+            ->from('(' . $CountSourceQuery->getSQL() . ')', 'searchResults')
+            ->setParameters(
+                $CountSourceQuery->getParameters(),
+                $CountSourceQuery->getParameterTypes()
+            );
 
         return [
-            'query' => $likeQuery,
-            'binds' => $likeBinds
+            'list' => $ListQuery->executeQuery()->fetchAllAssociative(),
+            'count' => $CountQuery->executeQuery()->fetchOne()
         ];
     }
 
@@ -561,8 +613,8 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $params
-     * @param array $siteParams - optional; Parameter for the site link
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $siteParams Optional parameters for the site link
      * @throws ExceptionStack|Exception
      */
     public static function setEntry(
@@ -584,7 +636,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project - Project
      * @param integer $siteId - ID of the site
-     * @param array $siteParams - (optional); Parameter for the site link
+     * @param array<string, mixed> $siteParams Optional parameters for the site link
      *
      * @return void
      * @throws Exception
@@ -596,10 +648,27 @@ class Fulltext extends QUI\QDOM
     ): void {
         $tbl = QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project);
 
-        QUI::getDataBase()->delete($tbl, [
+        Database::delete($tbl, [
             'siteId' => $siteId,
             'urlParameter' => json_encode($siteParams)
         ]);
+    }
+
+    /**
+     * Delete all fulltext entries belonging to a site.
+     */
+    public static function removeSiteEntries(Project $Project, int $siteId): void
+    {
+        if (!$siteId) {
+            return;
+        }
+
+        Database::delete(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project),
+            [
+                'siteId' => $siteId
+            ]
+        );
     }
 
     /**
@@ -607,8 +676,8 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $params
-     * @param array $siteParams - optional; Parameter for the site link
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $siteParams Optional parameters for the site link
      * @throws Exception
      */
     public static function setEntryData(
@@ -654,7 +723,7 @@ class Fulltext extends QUI\QDOM
             $urlParameter = json_encode($siteUrlParams);
 
 
-            QUI::getDataBase()->insert($table, [
+            Database::insert($table, [
                 'siteId' => $siteId,
                 'urlParameter' => $urlParameter
             ]);
@@ -675,7 +744,7 @@ class Fulltext extends QUI\QDOM
 
         $data['datatype'] = $Site->getAttribute('type');
 
-        QUI::getDataBase()->update($table, $data, [
+        Database::update($table, $data, [
             'siteId' => $siteId,
             'urlParameter' => $urlParameter
         ]);
@@ -687,7 +756,7 @@ class Fulltext extends QUI\QDOM
      * @param Project $Project
      * @param integer $siteId
      * @param string $data
-     * @param array $siteParams
+     * @param array<string, mixed> $siteParams
      * @throws Exception
      * @throws QUI\Exception
      */
@@ -719,7 +788,7 @@ class Fulltext extends QUI\QDOM
         $content = $content . ' ' . $data;
         $urlParameter = json_encode($siteParams);
 
-        QUI::getDataBase()->update($table, [
+        Database::update($table, [
             'data' => $content
         ], [
             'siteId' => $siteId,
@@ -732,9 +801,9 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $siteParams
+     * @param array<string, mixed> $siteParams
      *
-     * @return mixed
+     * @return array<string, mixed>
      * @throws Exception
      * @throws QUI\Exception
      */
@@ -750,21 +819,24 @@ class Fulltext extends QUI\QDOM
 
         $urlParameter = json_encode($siteParams);
 
-        $result = QUI::getDataBase()->fetch([
-            'from' => $table,
-            'where' => [
-                'siteId' => $siteId,
-                'urlParameter' => $urlParameter
-            ]
-        ]);
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->select('*')
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('siteId'), ':siteId'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('urlParameter'), ':urlParameter'))
+            ->setParameter('siteId', $siteId)
+            ->setParameter('urlParameter', $urlParameter)
+            ->setMaxResults(1);
+        $result = Database::fetchAssociative($QueryBuilder);
 
-        if (!isset($result[0])) {
+        if ($result === false) {
             throw new QUI\Exception(
                 'Search entry not exists'
             );
         }
 
-        return $result[0];
+        return $result;
     }
 
     // region Custom entries
@@ -774,7 +846,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param CustomSearchItem $CustomFulltextItem
-     * @param array $params (optional) - fulltext search table column values
+     * @param array<string, mixed> $params Optional fulltext search table column values
      * @throws Exception
      */
     public static function setCustomEntry(
@@ -788,7 +860,7 @@ class Fulltext extends QUI\QDOM
         try {
             $data = self::getCustomEntry($Project, $CustomFulltextItem);
         } catch (QUI\Exception) {
-            QUI::getDataBase()->insert($table, [
+            Database::insert($table, [
                 'custom_id' => $CustomFulltextItem->getId(),
                 'custom_data' => json_encode($CustomFulltextItem->toArray()),
                 'origin' => $CustomFulltextItem->getOrigin(),
@@ -812,7 +884,7 @@ class Fulltext extends QUI\QDOM
         $data['datatype'] = 'custom';
         $data['custom_data'] = json_encode($CustomFulltextItem->toArray());
 
-        QUI::getDataBase()->update($table, $data, [
+        Database::update($table, $data, [
             'custom_id' => $CustomFulltextItem->getId(),
             'origin' => $CustomFulltextItem->getOrigin()
         ]);
@@ -823,7 +895,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param CustomSearchItem $CustomFulltextItem
-     * @return array - Entry data as array (straight from db)
+     * @return array<string, mixed> Entry data straight from the database
      *
      * @throws QUI\Exception
      */
@@ -834,21 +906,24 @@ class Fulltext extends QUI\QDOM
             $Project
         );
 
-        $result = QUI::getDataBase()->fetch([
-            'from' => $table,
-            'where' => [
-                'custom_id' => $CustomFulltextItem->getId(),
-                'origin' => $CustomFulltextItem->getOrigin(),
-            ]
-        ]);
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->select('*')
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('custom_id'), ':customId'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('origin'), ':origin'))
+            ->setParameter('customId', $CustomFulltextItem->getId())
+            ->setParameter('origin', $CustomFulltextItem->getOrigin())
+            ->setMaxResults(1);
+        $result = Database::fetchAssociative($QueryBuilder);
 
-        if (!isset($result[0])) {
+        if ($result === false) {
             throw new QUI\Exception(
                 'Search entry not exists'
             );
         }
 
-        return $result[0];
+        return $result;
     }
 
     /**
@@ -862,7 +937,7 @@ class Fulltext extends QUI\QDOM
      */
     public static function removeCustomEntry(Project $Project, CustomSearchItem $CustomFulltextItem): void
     {
-        QUI::getDataBase()->delete(
+        Database::delete(
             QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project),
             [
                 'custom_id' => $CustomFulltextItem->getId(),
@@ -880,7 +955,7 @@ class Fulltext extends QUI\QDOM
      */
     public static function clearSearchTable(Project $Project): void
     {
-        QUI::getDataBase()->table()->truncate(
+        Database::truncate(
             QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project)
         );
     }
@@ -899,25 +974,28 @@ class Fulltext extends QUI\QDOM
         $list = $Project->getSitesIds([
             'active' => 1
         ]);
+        $siteIdsToKeep = [];
 
         foreach ($list as $siteParams) {
             set_time_limit(0);
 
+            $siteId = (int)$siteParams['id'];
+            $siteIdsToKeep[$siteId] = true;
+
             try {
-                $siteId = (int)$siteParams['id'];
                 $Site = new SiteEdit($Project, $siteId);
 
-                if (!$Site->getAttribute('active')) {
+                if (
+                    !$Site->getAttribute('active')
+                    || $Site->getAttribute('deleted')
+                    || $Site->getAttribute('quiqqer.settings.search.not.indexed')
+                ) {
+                    unset($siteIdsToKeep[$siteId]);
+                    self::removeSiteEntries($Project, $siteId);
                     continue;
                 }
 
-                if ($Site->getAttribute('deleted')) {
-                    continue;
-                }
-
-                if ($Site->getAttribute('quiqqer.settings.search.not.indexed')) {
-                    continue;
-                }
+                self::removeSiteEntries($Project, $siteId);
 
                 $e_date = $Site->getAttribute('e_date');
                 $e_date = strtotime($e_date);
@@ -948,6 +1026,11 @@ class Fulltext extends QUI\QDOM
                 Log::writeException($Exception);
             }
         }
+
+        Database::removeObsoleteSiteEntries(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project),
+            array_keys($siteIdsToKeep)
+        );
     }
 
     /**
@@ -957,7 +1040,7 @@ class Fulltext extends QUI\QDOM
     /**
      * Return the search fields
      *
-     * @return array
+     * @return list<array{field: string, type: string, fulltext: bool, package: string}>
      */
     public static function getFieldList(): array
     {
@@ -977,15 +1060,27 @@ class Fulltext extends QUI\QDOM
 
             $fields = $Path->query("//quiqqer/search/searchfields/field");
 
+            if ($fields === false) {
+                continue;
+            }
+
             foreach ($fields as $Field) {
-                if (method_exists($Field, 'getAttribute')) {
-                    $result[] = [
-                        'field' => trim($Field->nodeValue),
-                        'type' => $Field->getAttribute('type'),
-                        'fulltext' => (bool)$Field->getAttribute('fulltext'),
-                        'package' => $package
-                    ];
+                if (!$Field instanceof DOMElement) {
+                    continue;
                 }
+
+                $field = trim($Field->nodeValue ?? '');
+
+                if ($field === '') {
+                    continue;
+                }
+
+                $result[] = [
+                    'field' => $field,
+                    'type' => $Field->getAttribute('type'),
+                    'fulltext' => (bool)$Field->getAttribute('fulltext'),
+                    'package' => $package
+                ];
             }
         }
 
@@ -997,7 +1092,7 @@ class Fulltext extends QUI\QDOM
     /**
      * Return the plugins with a search.xml file
      *
-     * @return array
+     * @return array<string, string>
      */
     public static function getSearchXmlList(): array
     {

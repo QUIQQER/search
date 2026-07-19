@@ -21,7 +21,7 @@
 
         <autocreate>
             <scope>projects</scope>
-            <interval>0 0 * * *</interval>
+            <interval>0 0 1 1,7 *</interval>
             <active>1</active>
 
             <params>

@@ -1,10 +1,10 @@
 <form action="{url site=$Site}" method="GET">
     <input type="search"
            name="search"
-           value="{$search}"
+           value="{$search|escape:'html'}"
            class="quiqqer-search-searchinput-input"
            {if $suggestSearch != 'off'}data-qui="package/quiqqer/search/bin/controls/SuggestLazy"{/if}
-           placeholder="{$placeholder}"
+           placeholder="{$placeholder|escape:'html'}"
     />
 
     {if !$submitIcon}
@@ -13,8 +13,11 @@
                class="quiqqer-search-searchinput-submit qui-button button"
         />
     {else}
-        <button class="quiqqer-search-searchinput-submitIcon" type="submit">
-            <span class="fa fa-search"></span>
+        <button class="quiqqer-search-searchinput-submitIcon"
+                type="submit"
+                aria-label="{locale group='quiqqer/search' var='tpl.search.button'}"
+        >
+            <span class="fa fa-search" aria-hidden="true"></span>
         </button>
     {/if}
 
@@ -44,7 +47,7 @@
                 <input class="qui-search-searchinput-settings-setting"
                        type="checkbox"
                        name="searchIn[]"
-                       value="{$field}"
+                       value="{$field|escape:'html'}"
                        {if in_array($field, $fields)}checked="checked"{/if}
                 />
 

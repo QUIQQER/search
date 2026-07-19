@@ -39,6 +39,14 @@ use function urldecode;
  * Display search results
  *
  * @package QUI\Tags\Controls
+ *
+ * @phpstan-type SearchResult array{
+ *     count: int,
+ *     max: int,
+ *     sheets: int,
+ *     children: list<QUI\Interfaces\Projects\Site>,
+ *     more: bool
+ * }
  */
 class Search extends QUI\Control
 {
@@ -46,35 +54,45 @@ class Search extends QUI\Control
     const SEARCH_TYPE_AND = 'AND';
 
     const PAGINATION_TYPE_PAGINATION = 'pagination';
-    const PAGINATION_TYPE_INIFINITESCROLL = 'infinitescroll';
+    const PAGINATION_TYPE_INFINITESCROLL = 'infinitescroll';
+
+    /**
+     * @deprecated Use PAGINATION_TYPE_INFINITESCROLL instead.
+     */
+    const PAGINATION_TYPE_INIFINITESCROLL = self::PAGINATION_TYPE_INFINITESCROLL;
 
     /**
      * Site the control is on
      */
-    protected ?QUI\Interfaces\Projects\Site $Site = null;
+    protected QUI\Interfaces\Projects\Site $Site;
 
     /**
      * Search results runtime cache
+     *
+     * @var SearchResult|null
      */
     protected ?array $searchResults = null;
 
     /**
      * constructor
      *
-     * @param array $attributes
+     * @param array<string, mixed> $attributes
      * @throws Exception
      */
     public function __construct(array $attributes = [])
     {
-        if (
-            isset($attributes['Site'])
-            && $attributes['Site'] instanceof Site
-        ) {
-            $this->Site = $attributes['Site'];
+        if (isset($attributes['Site']) && $attributes['Site'] instanceof Site) {
+            $Site = $attributes['Site'];
             unset($attributes['Site']);
         } else {
-            $this->Site = QUI::getRewrite()->getSite();
+            $Site = QUI::getRewrite()->getSite();
         }
+
+        if (!$Site instanceof QUI\Interfaces\Projects\Site) {
+            throw new Exception('Search control requires a site context.');
+        }
+
+        $this->Site = $Site;
 
         $directory = dirname(__FILE__, 5);
 
@@ -116,9 +134,11 @@ class Search extends QUI\Control
 
     /**
      * Execute search and return search result information
+     *
+     * @return SearchResult
      * @throws Exception
      */
-    public function search(): ?array
+    public function search(): array
     {
         if (!is_null($this->searchResults)) {
             return $this->searchResults;
@@ -393,8 +413,8 @@ class Search extends QUI\Control
     /**
      * Clears the given search fields (remove invalid fields)
      *
-     * @param array $fields
-     * @return array - cleared fields
+     * @param array<array-key, mixed> $fields
+     * @return array<array-key, mixed> Cleared fields
      */
     protected function clearSearchFields(array $fields): array
     {
@@ -536,26 +556,49 @@ class Search extends QUI\Control
                         $constraints[$field] = [];
 
                         if (is_array($constraint)) {
-                            foreach ($constraint as $k => $value) {
+                            if (isset($constraint['value']) || isset($constraint['type'])) {
+                                $constraint = [$constraint];
+                            }
+
+                            foreach ($constraint as $value) {
                                 if (!is_string($value) && !is_array($value)) {
                                     continue;
                                 }
 
                                 if (is_array($value)) {
-                                    if (!isset($value['value']) && !isset($value['type'])) {
+                                    if (
+                                        !isset($value['value'], $value['type'])
+                                        || !is_string($value['value'])
+                                        || $value['type'] !== 'LIKE'
+                                    ) {
                                         continue;
                                     }
 
-                                    $constraints[$field][$k]['value'] = self::sanitizeSearchString($value['value']);
+                                    $sanitizedValue = self::sanitizeSearchString($value['value']);
+
+                                    if ($sanitizedValue === '') {
+                                        continue;
+                                    }
+
+                                    $constraints[$field][] = [
+                                        'value' => $sanitizedValue,
+                                        'type' => 'LIKE'
+                                    ];
                                 } else {
-                                    $constraints[$field][] = self::sanitizeSearchString($value);
+                                    $sanitizedValue = self::sanitizeSearchString($value);
+
+                                    if ($sanitizedValue !== '') {
+                                        $constraints[$field][] = $sanitizedValue;
+                                    }
                                 }
                             }
+                        } else {
+                            $sanitizedValue = self::sanitizeSearchString($constraint);
 
-                            continue;
+                            if ($sanitizedValue !== '') {
+                                $constraints[$field][] = $sanitizedValue;
+                            }
                         }
-
-                        $constraints[$field][] = self::sanitizeSearchString($constraint);
                     }
 
                     $v = $constraints;
@@ -593,7 +636,7 @@ class Search extends QUI\Control
     /**
      * Get the default search fields
      *
-     * @return array
+     * @return array<array-key, mixed>
      */
     protected function getDefaultSearchFields(): array
     {
@@ -632,7 +675,7 @@ class Search extends QUI\Control
     /**
      * Get attributes for the javascript control
      *
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getJavaScriptControlAttributes(): array
     {

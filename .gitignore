@@ -1,4 +1,5 @@
 tools/
 phpstan.neon
 .phpunit.result.cache
+.phpunit.cache/
 phpunit.xml

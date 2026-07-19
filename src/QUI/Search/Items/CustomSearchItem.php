@@ -31,7 +31,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      * @param string $origin - Package this instance originates from (e.g. "quiqqer/search")
      * @param string $title - Title that is shown as a search list result item title or quicksearch suggestion
      * @param string $url - The URL that leads to your search item Site
-     * @param array $attributes (optional) - Site-like attributes (e.g. "image_site", "short" etc.)
+     * @param array<string, mixed> $attributes Optional site-like attributes (e.g. "image_site", "short" etc.)
      */
     public function __construct(
         int $id,
@@ -64,11 +64,17 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      */
     public function getProject(): QUI\Projects\Project
     {
-        if (empty($this->Project)) {
-            return QUI::getRewrite()->getProject();
+        if ($this->Project instanceof QUI\Projects\Project) {
+            return $this->Project;
         }
 
-        return $this->Project;
+        $Project = QUI::getRewrite()->getProject();
+
+        if (!$Project instanceof QUI\Projects\Project) {
+            throw new Exception('Custom search item requires a project context.');
+        }
+
+        return $Project;
     }
 
     /**
@@ -143,7 +149,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Gibt die IDs von Sprachverknüpfungen zurück
      *
-     * @return array
+     * @return array<string, int|false>
      */
     public function getLangIds(): array
     {
@@ -166,12 +172,12 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Gibt alle Kinder zurück
      *
-     * @param array $params - Parameter für die Childrenausgabe
+     * @param array<string, mixed> $params Parameter für die Childrenausgabe
      *                      $params['where']
      *                      $params['limit']
      * @param boolean $load - Legt fest ob die Kinder die Plugins laden sollen
      *
-     * @return int|array ;
+     * @return array<int, mixed>|int
      */
     public function getChildren(array $params = [], bool $load = false): int | array
     {
@@ -196,7 +202,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      *
      * @param integer $no
      *
-     * @return array
+     * @return array<int, QUISiteInterface>
      */
     public function nextSiblings(int $no): array
     {
@@ -221,7 +227,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      *
      * @param integer $no
      *
-     * @return array
+     * @return array<int, QUISiteInterface>
      */
     public function previousSiblings(int $no): array
     {
@@ -231,7 +237,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Gibt das erste Kind der Seite zurück
      *
-     * @param array $params
+     * @param array<string, mixed> $params
      *
      * @return QUI\Projects\Site | false
      */
@@ -243,8 +249,8 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Gibt die Kinder zurück achtet aber auf "Nicht in Navigation anzeigen" und Rechte
      *
-     * @param array $params
-     * @return int|array
+     * @param array<string, mixed> $params
+     * @return array<int, mixed>|int
      */
     public function getNavigation(array $params = []): int | array
     {
@@ -289,11 +295,11 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      * Gibt die ID's der Kinder zurück
      * Wenn nur die ID's verwendet werden sollte dies vor getChildren verwendet werden
      *
-     * @param array $params Parameter für die Childrenausgabe
+     * @param array<string, mixed> $params Parameter für die Childrenausgabe
      *                      $params['where']
      *                      $params['limit']
      *
-     * @return int|array
+     * @return array<int, int>|int
      */
     public function getChildrenIds(array $params = []): int | array
     {
@@ -303,9 +309,9 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Return ALL children ids under the site
      *
-     * @param array $params - db parameter
+     * @param array<string, mixed> $params DB parameters
      *
-     * @return array
+     * @return array<int, int>
      */
     public function getChildrenIdsRecursive(array $params = []): array
     {
@@ -329,15 +335,16 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      *
      * @todo move to Site/Edit
      */
-    public function delete(): void
+    public function delete(): bool
     {
+        return false;
     }
 
     /**
      * Gibt die URL der Seite zurück
      *
-     * @param $params
-     * @param $rewrited
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $getParams
      *
      * @return string
      */
@@ -347,7 +354,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     }
 
     /**
-     * @param array $params
+     * @param array<string, mixed> $params
      * @return string
      */
     public function getUrlRewritten(array $params = []): string
@@ -373,7 +380,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      * ->Parent
      * ->Parent
      *
-     * @return array
+     * @return array<int, int>
      */
     public function getParentIds(): array
     {
@@ -383,7 +390,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Return the Parent ID List
      *
-     * @return array
+     * @return array<int, int>
      */
     public function getParentIdTree(): array
     {
@@ -406,7 +413,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      * Gibt alle rekursive Parents als Objekte zurück
      * Site->Parent->ParentParent->ParentParentParent
      *
-     * @return array
+     * @return array<int, QUISiteInterface|false>
      * @throws Exception
      */
     public function getParents(): array
@@ -482,7 +489,13 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * CustomFulltextItem data as array
      *
-     * @return array
+     * @return array{
+     *     id: int,
+     *     origin: string,
+     *     title: mixed,
+     *     url: string,
+     *     attributes: array<string, mixed>
+     * }
      */
     public function toArray(): array
     {

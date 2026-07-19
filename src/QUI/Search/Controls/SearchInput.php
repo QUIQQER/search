@@ -37,7 +37,7 @@ class SearchInput extends QUI\Control
     /**
      * constructor
      *
-     * @param array $attributes
+     * @param array<string, mixed> $attributes
      * @throws Exception
      */
     public function __construct(array $attributes = [])
@@ -106,7 +106,9 @@ class SearchInput extends QUI\Control
     public function setAttributesFromRequest(): void
     {
         // requests
-        if (isset($_REQUEST['searchterms'])) {
+        if (isset($_REQUEST['search'])) {
+            $this->setAttribute('search', $_REQUEST['search']);
+        } elseif (isset($_REQUEST['searchterms'])) {
             $this->setAttribute('search', $_REQUEST['searchterms']);
         }
 
@@ -181,7 +183,7 @@ class SearchInput extends QUI\Control
     /**
      * Get all available search fields
      *
-     * @return array
+     * @return list<string>
      */
     protected function getAllAvailableFields(): array
     {
