@@ -64,7 +64,7 @@ class Search extends QUI\Control
     /**
      * Site the control is on
      */
-    protected ?QUI\Interfaces\Projects\Site $Site = null;
+    protected QUI\Interfaces\Projects\Site $Site;
 
     /**
      * Search results runtime cache
@@ -81,15 +81,18 @@ class Search extends QUI\Control
      */
     public function __construct(array $attributes = [])
     {
-        if (
-            isset($attributes['Site'])
-            && $attributes['Site'] instanceof Site
-        ) {
-            $this->Site = $attributes['Site'];
+        if (isset($attributes['Site']) && $attributes['Site'] instanceof Site) {
+            $Site = $attributes['Site'];
             unset($attributes['Site']);
         } else {
-            $this->Site = QUI::getRewrite()->getSite();
+            $Site = QUI::getRewrite()->getSite();
         }
+
+        if (!$Site instanceof QUI\Interfaces\Projects\Site) {
+            throw new Exception('Search control requires a site context.');
+        }
+
+        $this->Site = $Site;
 
         $directory = dirname(__FILE__, 5);
 
