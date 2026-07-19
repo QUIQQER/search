@@ -26,7 +26,6 @@ use QUI\Utils\Security\Orthos;
 
 use function array_filter;
 use function array_flip;
-use function array_keys;
 use function array_merge;
 use function count;
 use function explode;
@@ -34,10 +33,8 @@ use function file_exists;
 use function implode;
 use function in_array;
 use function is_array;
-use function is_int;
 use function is_string;
 use function json_encode;
-use function key;
 use function mb_strlen;
 use function mb_strpos;
 use function mb_strtolower;
@@ -335,11 +332,7 @@ class Fulltext extends QUI\QDOM
         }
 
         // query
-        if (is_int(key($availableFields))) {
-            $selectedFields = $availableFields;
-        } else {
-            $selectedFields = array_keys($availableFields);
-        }
+        $selectedFields = $availableFields;
 
         // Relevance search (MATCH.. AGAINST)
         $searchMode = 'like';
