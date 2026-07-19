@@ -26,6 +26,7 @@ use QUI\Utils\Security\Orthos;
 
 use function array_filter;
 use function array_flip;
+use function array_keys;
 use function array_merge;
 use function count;
 use function explode;
@@ -654,6 +655,23 @@ class Fulltext extends QUI\QDOM
     }
 
     /**
+     * Delete all fulltext entries belonging to a site.
+     */
+    public static function removeSiteEntries(Project $Project, int $siteId): void
+    {
+        if (!$siteId) {
+            return;
+        }
+
+        Database::delete(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project),
+            [
+                'siteId' => $siteId
+            ]
+        );
+    }
+
+    /**
      * Edit an entry to the fulltext search table
      *
      * @param Project $Project
@@ -956,25 +974,28 @@ class Fulltext extends QUI\QDOM
         $list = $Project->getSitesIds([
             'active' => 1
         ]);
+        $siteIdsToKeep = [];
 
         foreach ($list as $siteParams) {
             set_time_limit(0);
 
+            $siteId = (int)$siteParams['id'];
+            $siteIdsToKeep[$siteId] = true;
+
             try {
-                $siteId = (int)$siteParams['id'];
                 $Site = new SiteEdit($Project, $siteId);
 
-                if (!$Site->getAttribute('active')) {
+                if (
+                    !$Site->getAttribute('active')
+                    || $Site->getAttribute('deleted')
+                    || $Site->getAttribute('quiqqer.settings.search.not.indexed')
+                ) {
+                    unset($siteIdsToKeep[$siteId]);
+                    self::removeSiteEntries($Project, $siteId);
                     continue;
                 }
 
-                if ($Site->getAttribute('deleted')) {
-                    continue;
-                }
-
-                if ($Site->getAttribute('quiqqer.settings.search.not.indexed')) {
-                    continue;
-                }
+                self::removeSiteEntries($Project, $siteId);
 
                 $e_date = $Site->getAttribute('e_date');
                 $e_date = strtotime($e_date);
@@ -1005,6 +1026,11 @@ class Fulltext extends QUI\QDOM
                 Log::writeException($Exception);
             }
         }
+
+        Database::removeObsoleteSiteEntries(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project),
+            array_keys($siteIdsToKeep)
+        );
     }
 
     /**

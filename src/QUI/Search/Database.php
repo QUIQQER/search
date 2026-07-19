@@ -95,6 +95,41 @@ final class Database
         }
     }
 
+    /**
+     * Remove indexed site entries that no longer belong to an indexable site.
+     * Entries without a site ID, such as custom search items, are preserved.
+     *
+     * @param list<int> $siteIdsToKeep
+     */
+    public static function removeObsoleteSiteEntries(string $table, array $siteIdsToKeep): void
+    {
+        $siteIdColumn = Doctrine::quoteIdentifier('siteId');
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->select($siteIdColumn . ' AS indexed_site_id')
+            ->distinct()
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->isNotNull($siteIdColumn));
+
+        $validSiteIds = [];
+
+        foreach ($siteIdsToKeep as $siteId) {
+            $validSiteIds[$siteId] = true;
+        }
+
+        foreach (self::fetchAllAssociative($QueryBuilder) as $row) {
+            $siteId = (int)$row['indexed_site_id'];
+
+            if (isset($validSiteIds[$siteId])) {
+                continue;
+            }
+
+            self::delete($table, [
+                'siteId' => $siteId
+            ]);
+        }
+    }
+
     public static function createException(DBALException $Exception): Exception
     {
         Log::writeException($Exception);

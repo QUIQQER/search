@@ -496,6 +496,44 @@ class SearchDatabaseIntegrationTest extends TestCase
         self::assertSame(0, $this->fixtureRowCount());
     }
 
+    public function testRebuildPreservesCustomEntriesAndRemovesObsoleteSites(): void
+    {
+        $Item = $this->createCustomItem(self::CUSTOM_ID, 'Search PHPUnit Rebuild');
+
+        Fulltext::setCustomEntry($this->Project, $Item, [
+            'title' => 'Search PHPUnit Rebuild',
+            'data' => 'search-phpunit-rebuild'
+        ]);
+        Quicksearch::setCustomEntry($this->Project, $Item, [
+            'search-phpunit-rebuild'
+        ]);
+
+        $obsoleteFixture = [
+            'siteId' => self::EXCLUDED_SITE_ID,
+            'urlParameter' => json_encode(self::URL_PARAMS_SECOND),
+            'origin' => self::ORIGIN
+        ];
+
+        $this->Connection->insert($this->fulltextTable, $obsoleteFixture);
+        $this->Connection->insert($this->quicksearchTable, $obsoleteFixture);
+
+        $Search = new Search();
+        $Search->createFulltextSearch($this->Project);
+        $Search->createQuicksearch($this->Project);
+
+        self::assertSame(
+            (string)self::CUSTOM_ID,
+            (string)Fulltext::getCustomEntry($this->Project, $Item)['custom_id']
+        );
+        self::assertTrue(Quicksearch::existsCustomEntry(
+            $this->Project,
+            $Item,
+            'search-phpunit-rebuild'
+        ));
+        self::assertSame(0, $this->siteEntryCount($this->fulltextTable, self::EXCLUDED_SITE_ID));
+        self::assertSame(0, $this->siteEntryCount($this->quicksearchTable, self::EXCLUDED_SITE_ID));
+    }
+
     public function testDatabaseExceptionsAreWrapped(): void
     {
         $QueryBuilder = QUI::getQueryBuilder();
@@ -562,5 +600,18 @@ class SearchDatabaseIntegrationTest extends TestCase
         };
 
         return $countRows($this->fulltextTable) + $countRows($this->quicksearchTable);
+    }
+
+    private function siteEntryCount(string $table, int $siteId): int
+    {
+        $QueryBuilder = QUI::getQueryBuilder();
+
+        return (int)$QueryBuilder
+            ->select('COUNT(*)')
+            ->from(QUI\Utils\Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->eq('siteId', ':siteId'))
+            ->setParameter('siteId', $siteId)
+            ->executeQuery()
+            ->fetchOne();
     }
 }

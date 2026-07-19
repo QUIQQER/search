@@ -333,6 +333,23 @@ class Quicksearch extends QUI\QDOM
     }
 
     /**
+     * Delete all quicksearch entries belonging to a site.
+     */
+    public static function removeSiteEntries(Project $Project, int $siteId): void
+    {
+        if (!$siteId) {
+            return;
+        }
+
+        Database::delete(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_QUICK, $Project),
+            [
+                'siteId' => $siteId
+            ]
+        );
+    }
+
+    /**
      * Return a fulltext entry
      *
      * @param Project $Project

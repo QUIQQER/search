@@ -21,6 +21,7 @@ use QUI\Search\Fulltext;
 use QUI\Search\Quicksearch;
 use QUI\System\Log;
 
+use function array_keys;
 use function set_time_limit;
 use function strtotime;
 
@@ -55,7 +56,6 @@ class Search
     public function createFulltextSearch(Project $Project): void
     {
         $Fulltext = new Fulltext();
-        $Fulltext->clearSearchTable($Project); // @todo muss raus
 
         QUI::getEvents()->fireEvent(
             'searchFulltextCreate',
@@ -80,26 +80,28 @@ class Search
         ]);
 
         $Quicksearch = new Quicksearch();
-        $Quicksearch->clearSearchTable($Project);
+        $siteIdsToKeep = [];
 
         foreach ($list as $siteParams) {
+            $siteId = (int)$siteParams['id'];
+            $siteIdsToKeep[$siteId] = true;
+
             try {
                 set_time_limit(0);
 
-                $siteId = (int)$siteParams['id'];
                 $Site = new SiteEdit($Project, $siteId);
 
-                if (!$Site->getAttribute('active')) {
+                if (
+                    !$Site->getAttribute('active')
+                    || $Site->getAttribute('deleted')
+                    || $Site->getAttribute('quiqqer.settings.search.not.indexed')
+                ) {
+                    unset($siteIdsToKeep[$siteId]);
+                    Quicksearch::removeSiteEntries($Project, $siteId);
                     continue;
                 }
 
-                if ($Site->getAttribute('deleted')) {
-                    continue;
-                }
-
-                if ($Site->getAttribute('quiqqer.settings.search.not.indexed')) {
-                    continue;
-                }
+                Quicksearch::removeSiteEntries($Project, $siteId);
 
                 $Quicksearch->setEntries($Project, $siteId, [
                     $Site->getAttribute('name') . ' ' . $Site->getAttribute('title'),
@@ -108,6 +110,11 @@ class Search
                 Log::writeException($Exception);
             }
         }
+
+        Database::removeObsoleteSiteEntries(
+            QUI::getDBProjectTableName(self::TABLE_SEARCH_QUICK, $Project),
+            array_keys($siteIdsToKeep)
+        );
 
         QUI::getEvents()->fireEvent(
             'searchQuicksearchCreate',
@@ -315,24 +322,8 @@ class Search
     {
         $Project = $Site->getProject();
 
-        $tableSearchFull = QUI::getDBProjectTableName(
-            self::TABLE_SEARCH_FULL,
-            $Project
-        );
-
-        $tableQuicksearch = QUI::getDBProjectTableName(
-            self::TABLE_SEARCH_QUICK,
-            $Project
-        );
-
-        // remove entries from tables
-        Database::delete($tableSearchFull, [
-            'siteId' => $Site->getId()
-        ]);
-
-        Database::delete($tableQuicksearch, [
-            'siteId' => $Site->getId()
-        ]);
+        Fulltext::removeSiteEntries($Project, $Site->getId());
+        Quicksearch::removeSiteEntries($Project, $Site->getId());
     }
 
     /**
