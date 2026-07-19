@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 use QUI;
 use QUI\Search\Fulltext;
 use QUI\Search\Quicksearch;
+use ReflectionClass;
 
 class FieldConfigurationTest extends TestCase
 {
@@ -42,5 +43,17 @@ class FieldConfigurationTest extends TestCase
             ['quiqqer/search:types/search'],
             $Quicksearch->getAttribute('siteTypes')
         );
+    }
+
+    public function testRelevanceWeightsUseSearchFieldNames(): void
+    {
+        $Reflection = new ReflectionClass(Fulltext::class);
+        $weights = $Reflection->getConstant('RELEVANCE_WEIGHTS');
+
+        self::assertSame(8, $weights['name']);
+        self::assertSame(10, $weights['title']);
+        self::assertSame(5, $weights['short']);
+        self::assertSame(3, $weights['data']);
+        self::assertArrayNotHasKey('content', $weights);
     }
 }

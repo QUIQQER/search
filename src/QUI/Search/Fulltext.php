@@ -53,6 +53,13 @@ use function trim;
  */
 class Fulltext extends QUI\QDOM
 {
+    private const RELEVANCE_WEIGHTS = [
+        'name' => 8,
+        'title' => 10,
+        'short' => 5,
+        'data' => 3
+    ];
+
     /**
      * Constructor
      *
@@ -169,13 +176,6 @@ class Fulltext extends QUI\QDOM
         }
 
         // sql
-        $count = [
-            'name' => 8,
-            'title' => 10,
-            'short' => 5,
-            'content' => 3
-        ];
-
         $PDO = QUI::getPDO();
         $table = QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project);
         $limit = QUI\Database\DB::createQueryLimit($attrLimit);
@@ -187,11 +187,7 @@ class Fulltext extends QUI\QDOM
         $relevanceSum = 0;
 
         foreach ($fulltextFields as $field) {
-            $matchCount = 9;
-
-            if (isset($count[$field])) {
-                $matchCount = $count[$field];
-            }
+            $matchCount = self::RELEVANCE_WEIGHTS[$field] ?? 9;
 
             $relevanceMatch[] = "MATCH($field) AGAINST (:search IN BOOLEAN MODE) * $matchCount";
             $whereMatch[] = "MATCH($field) AGAINST (:search IN BOOLEAN MODE)";
