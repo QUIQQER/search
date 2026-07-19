@@ -106,7 +106,9 @@ class SearchInput extends QUI\Control
     public function setAttributesFromRequest(): void
     {
         // requests
-        if (isset($_REQUEST['searchterms'])) {
+        if (isset($_REQUEST['search'])) {
+            $this->setAttribute('search', $_REQUEST['search']);
+        } elseif (isset($_REQUEST['searchterms'])) {
             $this->setAttribute('search', $_REQUEST['searchterms']);
         }
 

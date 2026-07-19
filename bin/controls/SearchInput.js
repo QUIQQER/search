@@ -76,7 +76,7 @@ define('package/quiqqer/search/bin/controls/SearchInput', [
                 '.qui-search-searchinput-settings'
             );
 
-            this.$searchTerms = this.$SearchInput.value.trim().split(' ');
+            this.$searchTerms = this.$parseSearchTerms();
 
             // Initialize suggest input event (if option is set)
             QUIControlUtils.getControlByElement(this.$SearchInput).then(function (SuggestControl) {
@@ -232,12 +232,27 @@ define('package/quiqqer/search/bin/controls/SearchInput', [
         },
 
         /**
+         * Parse the current input value into search terms
+         *
+         * @return {Array}
+         */
+        $parseSearchTerms: function () {
+            var search = this.$SearchInput.value.trim();
+
+            if (!search) {
+                return [];
+            }
+
+            return search.split(/\s+/);
+        },
+
+        /**
          * Submit search
          */
         $submit: function () {
             var self = this;
 
-            this.$searchTerms = this.$SearchInput.value.trim().split(' ');
+            this.$searchTerms = this.$parseSearchTerms();
 
             this.Loader.show();
 

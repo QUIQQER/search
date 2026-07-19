@@ -182,7 +182,8 @@ class ControlTest extends TestCase
         self::assertSame(['title'], array_values($Input->getAttribute('fields')));
 
         $_REQUEST = [
-            'searchterms' => 'Alpha',
+            'search' => 'Alpha',
+            'searchterms' => 'Legacy',
             'searchType' => 'AND',
             'searchIn' => ['name', ['invalid'], 'not-a-field']
         ];
@@ -193,6 +194,11 @@ class ControlTest extends TestCase
         self::assertSame(SearchControl::SEARCH_TYPE_AND, $Input->getAttribute('searchType'));
         self::assertSame(['name'], array_values($Input->getAttribute('fields')));
         self::assertNotSame('', $Input->getBody());
+
+        $_REQUEST = ['searchterms' => 'Legacy'];
+        $Input->setAttributesFromRequest();
+
+        self::assertSame('Legacy', $Input->getAttribute('search'));
     }
 
     public function testSearchInputEscapesDynamicAttributeValues(): void
