@@ -127,7 +127,7 @@ class SearchDatabaseIntegrationTest extends TestCase
             $this->Project,
             ['limit' => 10]
         );
-        $ungrouped = (new Quicksearch(['siteTypes' => ['custom']]))->search(
+        $ungrouped = (new Quicksearch(['siteTypes' => ['custom', null, '', 123]]))->search(
             'search-phpunit-shared',
             $this->Project,
             ['limit' => '0,10', 'group' => false]

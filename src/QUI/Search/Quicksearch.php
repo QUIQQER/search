@@ -17,6 +17,7 @@ use QUI\Utils\Doctrine;
 use QUI\Utils\Security\Orthos;
 
 use function is_array;
+use function is_string;
 use function json_encode;
 
 /**
@@ -66,14 +67,17 @@ class Quicksearch extends QUI\QDOM
         }
 
         // restrict search to certain site types
-        $siteTypes = $this->getAttribute('siteTypes');
+        $siteTypesAttribute = $this->getAttribute('siteTypes');
+        $siteTypes = [];
 
-        if ($siteTypes) {
-            if (!is_array($siteTypes)) {
-                $siteTypes = [$siteTypes];
+        if (is_string($siteTypesAttribute) && $siteTypesAttribute !== '') {
+            $siteTypes[] = $siteTypesAttribute;
+        } elseif (is_array($siteTypesAttribute)) {
+            foreach ($siteTypesAttribute as $siteType) {
+                if (is_string($siteType) && $siteType !== '') {
+                    $siteTypes[] = $siteType;
+                }
             }
-        } else {
-            $siteTypes = [];
         }
 
         $group = !isset($params['group']) || $params['group'] !== false;
