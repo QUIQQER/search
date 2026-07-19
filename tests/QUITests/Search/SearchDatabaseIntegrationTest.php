@@ -192,7 +192,12 @@ class SearchDatabaseIntegrationTest extends TestCase
                 ],
                 'invalid-field' => 'ignored'
             ],
-            'orderFields' => ['e_date DESC']
+            'orderFields' => [
+                'e_date DESC',
+                'title DESC, (SELECT 1)',
+                'missing_field ASC',
+                'name SIDEWAYS'
+            ]
         ]))->search('shared phrase');
 
         self::assertSame(1, count($constrainedResult['list']));

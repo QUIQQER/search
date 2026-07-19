@@ -26,10 +26,8 @@ use function array_flip;
 use function array_keys;
 use function array_merge;
 use function count;
-use function current;
 use function explode;
 use function file_exists;
-use function get_class;
 use function implode;
 use function in_array;
 use function is_array;
@@ -40,8 +38,10 @@ use function key;
 use function mb_strlen;
 use function mb_strpos;
 use function mb_strtolower;
+use function preg_split;
 use function set_time_limit;
 use function str_replace;
+use function strtoupper;
 use function strtotime;
 use function trim;
 
@@ -301,15 +301,61 @@ class Fulltext extends QUI\QDOM
         $order = '';
 
         if (is_array($orderFields) && !empty($orderFields)) {
-            $order = implode(',', $orderFields) . ',';
+            $sortableFields = [];
+
+            foreach ($fieldList as $entry) {
+                $field = Orthos::clearNoneCharacters($entry['field'], ['_']);
+                $sortableFields[$field] = true;
+            }
+
+            $validatedOrderFields = [];
 
             foreach ($orderFields as $orderField) {
-                $orderFieldParts = explode(' ', $orderField);
-                $orderField = current($orderFieldParts);
+                if (!is_string($orderField)) {
+                    continue;
+                }
+
+                $orderFieldParts = preg_split('/\s+/', trim($orderField));
+
+                if (
+                    $orderFieldParts === false
+                    || count($orderFieldParts) < 1
+                    || count($orderFieldParts) > 2
+                ) {
+                    continue;
+                }
+
+                $orderField = $orderFieldParts[0];
+
+                if (!isset($sortableFields[$orderField])) {
+                    continue;
+                }
+
+                $direction = '';
+
+                if (isset($orderFieldParts[1])) {
+                    $direction = strtoupper($orderFieldParts[1]);
+
+                    if (!in_array($direction, ['ASC', 'DESC'], true)) {
+                        continue;
+                    }
+                }
+
+                $validatedOrderField = QUI\Utils\Doctrine::quoteIdentifier($orderField);
+
+                if ($direction !== '') {
+                    $validatedOrderField .= ' ' . $direction;
+                }
+
+                $validatedOrderFields[] = $validatedOrderField;
 
                 if (!in_array($orderField, $availableFields)) {
                     $availableFields[] = $orderField;
                 }
+            }
+
+            if (!empty($validatedOrderFields)) {
+                $order = implode(',', $validatedOrderFields) . ',';
             }
         }
 
