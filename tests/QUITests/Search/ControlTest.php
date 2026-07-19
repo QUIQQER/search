@@ -189,6 +189,30 @@ class ControlTest extends TestCase
         self::assertNotSame('', $Input->getBody());
     }
 
+    public function testSearchInputEscapesDynamicAttributeValues(): void
+    {
+        $attack = '"><script>alert(1)</script>';
+        $fieldAttack = 'name" autofocus onfocus="alert(1)';
+        $Input = new TestableSearchInput([
+            'search' => $attack,
+            'placeholder' => $attack
+        ]);
+        $Input->setAttribute('availableFields', [$fieldAttack]);
+
+        $body = $Input->getBody();
+
+        self::assertStringNotContainsString('value="' . $attack . '"', $body);
+        self::assertStringNotContainsString('value="' . $fieldAttack . '"', $body);
+        self::assertStringContainsString(
+            htmlspecialchars($attack, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            $body
+        );
+        self::assertStringContainsString(
+            htmlspecialchars($fieldAttack, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            $body
+        );
+    }
+
     public function testSearchBrickRendersWithExplicitResultSite(): void
     {
         $Brick = new SearchBrick([
