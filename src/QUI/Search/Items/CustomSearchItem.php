@@ -64,11 +64,17 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      */
     public function getProject(): QUI\Projects\Project
     {
-        if (empty($this->Project)) {
-            return QUI::getRewrite()->getProject();
+        if ($this->Project instanceof QUI\Projects\Project) {
+            return $this->Project;
         }
 
-        return $this->Project;
+        $Project = QUI::getRewrite()->getProject();
+
+        if (!$Project instanceof QUI\Projects\Project) {
+            throw new Exception('Custom search item requires a project context.');
+        }
+
+        return $Project;
     }
 
     /**
