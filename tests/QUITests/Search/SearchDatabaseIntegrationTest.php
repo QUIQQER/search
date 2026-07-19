@@ -133,6 +133,7 @@ class SearchDatabaseIntegrationTest extends TestCase
         );
 
         self::assertSame(1, count($grouped['list']));
+        self::assertSame(1, (int)$grouped['count']);
         self::assertSame(2, count($ungrouped['list']));
         self::assertSame(2, (int)$ungrouped['count']);
 
