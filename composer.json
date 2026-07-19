@@ -35,6 +35,11 @@
       "QUI\\Search\\": "src/QUI/Search"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "QUITests\\Search\\": "tests/QUITests/Search"
+    }
+  },
   "scripts": {
     "test": [
       "@dev:lint",
