@@ -21,7 +21,6 @@ use QUI\Search\Fulltext;
 use QUI\Search\Quicksearch;
 use QUI\System\Log;
 
-use function is_object;
 use function set_time_limit;
 use function strtotime;
 
@@ -439,8 +438,12 @@ class Search
     {
         $Project = $Template->getAttribute('Project');
 
-        if (!is_object($Project)) {
+        if (!$Project instanceof Project) {
             $Project = QUI::getProjectManager()->get();
+        }
+
+        if (!$Project instanceof Project) {
+            return;
         }
 
         $result = $Project->getSites([
