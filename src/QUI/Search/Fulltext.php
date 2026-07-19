@@ -271,14 +271,8 @@ class Fulltext extends QUI\QDOM
             }
         }
 
-        $minWordLength = QUI::getPackage('quiqqer/search')
-            ->getConfig()
-            ->get('search', 'booleanSearchMaxLength');
-
-        // fallback
-        if (!$minWordLength) {
-            $minWordLength = 3;
-        }
+        $Config = QUI::getPackage('quiqqer/search')->getConfig();
+        $minWordLength = $Config?->get('search', 'booleanSearchMaxLength') ?: 3;
 
         $match = str_replace(['*', '+'], '', $search);
 
