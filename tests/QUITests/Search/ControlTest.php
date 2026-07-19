@@ -53,7 +53,15 @@ class ControlTest extends TestCase
             'orderFields' => 'invalid',
             'relevanceSearch' => 1,
             'fieldConstraints' => [
-                'name' => ['Alpha', 123, ['value' => 'Beta', 'type' => 'LIKE']],
+                'name' => [
+                    'Alpha',
+                    123,
+                    ['value' => 'Beta', 'type' => 'LIKE'],
+                    ['value' => 'ignored'],
+                    ['type' => 'LIKE'],
+                    ['value' => 'ignored', 'type' => 'INVALID'],
+                    ['value' => '', 'type' => 'LIKE']
+                ],
                 'invalid' => 'ignored'
             ],
             'childrenListTemplate' => '/missing/template.html',
@@ -68,7 +76,7 @@ class ControlTest extends TestCase
         self::assertSame($Control->defaultFields(), $Control->getAttribute('orderFields'));
         self::assertTrue($Control->getAttribute('relevanceSearch'));
         self::assertSame(
-            ['Alpha', 123, ['value' => 'Beta', 'type' => 'LIKE']],
+            ['Alpha', ['value' => 'Beta', 'type' => 'LIKE']],
             $Control->getAttribute('fieldConstraints')['name']
         );
         self::assertStringEndsWith('/templates/SearchResultList.html', $Control->getAttribute('childrenListTemplate'));
@@ -76,6 +84,16 @@ class ControlTest extends TestCase
         self::assertSame('infinitescroll', $Control->paginationType());
         self::assertSame('Alpha Beta', TestableSearchControl::sanitizeString(' Alpha   Beta '));
         self::assertSame($Control->search(), $Control->search());
+
+        $Control->setAttribute('fieldConstraints', [
+            'name' => ['value' => 'Gamma', 'type' => 'LIKE']
+        ]);
+        $Control->sanitize();
+
+        self::assertSame(
+            [['value' => 'Gamma', 'type' => 'LIKE']],
+            $Control->getAttribute('fieldConstraints')['name']
+        );
 
         $_REQUEST = [
             'sheet' => '3',

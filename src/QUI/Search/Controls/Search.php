@@ -536,26 +536,49 @@ class Search extends QUI\Control
                         $constraints[$field] = [];
 
                         if (is_array($constraint)) {
-                            foreach ($constraint as $k => $value) {
+                            if (isset($constraint['value']) || isset($constraint['type'])) {
+                                $constraint = [$constraint];
+                            }
+
+                            foreach ($constraint as $value) {
                                 if (!is_string($value) && !is_array($value)) {
                                     continue;
                                 }
 
                                 if (is_array($value)) {
-                                    if (!isset($value['value']) && !isset($value['type'])) {
+                                    if (
+                                        !isset($value['value'], $value['type'])
+                                        || !is_string($value['value'])
+                                        || $value['type'] !== 'LIKE'
+                                    ) {
                                         continue;
                                     }
 
-                                    $constraints[$field][$k]['value'] = self::sanitizeSearchString($value['value']);
+                                    $sanitizedValue = self::sanitizeSearchString($value['value']);
+
+                                    if ($sanitizedValue === '') {
+                                        continue;
+                                    }
+
+                                    $constraints[$field][] = [
+                                        'value' => $sanitizedValue,
+                                        'type' => 'LIKE'
+                                    ];
                                 } else {
-                                    $constraints[$field][] = self::sanitizeSearchString($value);
+                                    $sanitizedValue = self::sanitizeSearchString($value);
+
+                                    if ($sanitizedValue !== '') {
+                                        $constraints[$field][] = $sanitizedValue;
+                                    }
                                 }
                             }
+                        } else {
+                            $sanitizedValue = self::sanitizeSearchString($constraint);
 
-                            continue;
+                            if ($sanitizedValue !== '') {
+                                $constraints[$field][] = $sanitizedValue;
+                            }
                         }
-
-                        $constraints[$field][] = self::sanitizeSearchString($constraint);
                     }
 
                     $v = $constraints;
