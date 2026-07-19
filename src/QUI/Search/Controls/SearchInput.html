@@ -13,8 +13,11 @@
                class="quiqqer-search-searchinput-submit qui-button button"
         />
     {else}
-        <button class="quiqqer-search-searchinput-submitIcon" type="submit">
-            <span class="fa fa-search"></span>
+        <button class="quiqqer-search-searchinput-submitIcon"
+                type="submit"
+                aria-label="{locale group='quiqqer/search' var='tpl.search.button'}"
+        >
+            <span class="fa fa-search" aria-hidden="true"></span>
         </button>
     {/if}
 
