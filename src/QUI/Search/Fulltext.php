@@ -417,7 +417,7 @@ class Fulltext extends QUI\QDOM
             return $this->executeSearchQuery($query, $attrLimit);
         } catch (DriverException $Exception) {
             if ($searchMode !== 'fulltext' || $Exception->getCode() !== 1191) {
-                throw $Exception;
+                throw Database::createException($Exception);
             }
 
             $query = $this->buildLikeQuery(
@@ -435,7 +435,13 @@ class Fulltext extends QUI\QDOM
                 self::class . '::search() FULLTEXT unavailable (1191), using LIKE fallback'
             );
 
-            return $this->executeSearchQuery($query, $attrLimit);
+            try {
+                return $this->executeSearchQuery($query, $attrLimit);
+            } catch (\Doctrine\DBAL\Exception $Exception) {
+                throw Database::createException($Exception);
+            }
+        } catch (\Doctrine\DBAL\Exception $Exception) {
+            throw Database::createException($Exception);
         }
     }
 
@@ -650,7 +656,7 @@ class Fulltext extends QUI\QDOM
     ): void {
         $tbl = QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project);
 
-        QUI::getDataBaseConnection()->delete(Doctrine::quoteIdentifier($tbl), [
+        Database::delete($tbl, [
             'siteId' => $siteId,
             'urlParameter' => json_encode($siteParams)
         ]);
@@ -708,7 +714,7 @@ class Fulltext extends QUI\QDOM
             $urlParameter = json_encode($siteUrlParams);
 
 
-            QUI::getDataBaseConnection()->insert(Doctrine::quoteIdentifier($table), [
+            Database::insert($table, [
                 'siteId' => $siteId,
                 'urlParameter' => $urlParameter
             ]);
@@ -729,7 +735,7 @@ class Fulltext extends QUI\QDOM
 
         $data['datatype'] = $Site->getAttribute('type');
 
-        QUI::getDataBaseConnection()->update(Doctrine::quoteIdentifier($table), $data, [
+        Database::update($table, $data, [
             'siteId' => $siteId,
             'urlParameter' => $urlParameter
         ]);
@@ -773,7 +779,7 @@ class Fulltext extends QUI\QDOM
         $content = $content . ' ' . $data;
         $urlParameter = json_encode($siteParams);
 
-        QUI::getDataBaseConnection()->update(Doctrine::quoteIdentifier($table), [
+        Database::update($table, [
             'data' => $content
         ], [
             'siteId' => $siteId,
@@ -805,16 +811,15 @@ class Fulltext extends QUI\QDOM
         $urlParameter = json_encode($siteParams);
 
         $QueryBuilder = QUI::getQueryBuilder();
-        $result = $QueryBuilder
+        $QueryBuilder
             ->select('*')
             ->from(Doctrine::quoteIdentifier($table))
             ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('siteId'), ':siteId'))
             ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('urlParameter'), ':urlParameter'))
             ->setParameter('siteId', $siteId)
             ->setParameter('urlParameter', $urlParameter)
-            ->setMaxResults(1)
-            ->executeQuery()
-            ->fetchAssociative();
+            ->setMaxResults(1);
+        $result = Database::fetchAssociative($QueryBuilder);
 
         if ($result === false) {
             throw new QUI\Exception(
@@ -846,7 +851,7 @@ class Fulltext extends QUI\QDOM
         try {
             $data = self::getCustomEntry($Project, $CustomFulltextItem);
         } catch (QUI\Exception) {
-            QUI::getDataBaseConnection()->insert(Doctrine::quoteIdentifier($table), [
+            Database::insert($table, [
                 'custom_id' => $CustomFulltextItem->getId(),
                 'custom_data' => json_encode($CustomFulltextItem->toArray()),
                 'origin' => $CustomFulltextItem->getOrigin(),
@@ -870,7 +875,7 @@ class Fulltext extends QUI\QDOM
         $data['datatype'] = 'custom';
         $data['custom_data'] = json_encode($CustomFulltextItem->toArray());
 
-        QUI::getDataBaseConnection()->update(Doctrine::quoteIdentifier($table), $data, [
+        Database::update($table, $data, [
             'custom_id' => $CustomFulltextItem->getId(),
             'origin' => $CustomFulltextItem->getOrigin()
         ]);
@@ -893,16 +898,15 @@ class Fulltext extends QUI\QDOM
         );
 
         $QueryBuilder = QUI::getQueryBuilder();
-        $result = $QueryBuilder
+        $QueryBuilder
             ->select('*')
             ->from(Doctrine::quoteIdentifier($table))
             ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('custom_id'), ':customId'))
             ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('origin'), ':origin'))
             ->setParameter('customId', $CustomFulltextItem->getId())
             ->setParameter('origin', $CustomFulltextItem->getOrigin())
-            ->setMaxResults(1)
-            ->executeQuery()
-            ->fetchAssociative();
+            ->setMaxResults(1);
+        $result = Database::fetchAssociative($QueryBuilder);
 
         if ($result === false) {
             throw new QUI\Exception(
@@ -924,8 +928,8 @@ class Fulltext extends QUI\QDOM
      */
     public static function removeCustomEntry(Project $Project, CustomSearchItem $CustomFulltextItem): void
     {
-        QUI::getDataBaseConnection()->delete(
-            Doctrine::quoteIdentifier(QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project)),
+        Database::delete(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project),
             [
                 'custom_id' => $CustomFulltextItem->getId(),
                 'origin' => $CustomFulltextItem->getOrigin(),
@@ -942,13 +946,8 @@ class Fulltext extends QUI\QDOM
      */
     public static function clearSearchTable(Project $Project): void
     {
-        $Connection = QUI::getDataBaseConnection();
-        $table = Doctrine::quoteIdentifier(
+        Database::truncate(
             QUI::getDBProjectTableName(Search::TABLE_SEARCH_FULL, $Project)
-        );
-
-        $Connection->executeStatement(
-            $Connection->getDatabasePlatform()->getTruncateTableSQL($table)
         );
     }
 

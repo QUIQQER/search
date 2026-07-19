@@ -8,6 +8,7 @@ use QUI;
 use QUI\Projects\Project;
 use QUI\Search;
 use QUI\Search\Controls\Search as SearchControl;
+use QUI\Search\Database as SearchDatabase;
 use QUI\Search\Fulltext;
 use QUI\Search\Items\CustomSearchItem;
 use QUI\Search\Quicksearch;
@@ -446,6 +447,17 @@ class SearchDatabaseIntegrationTest extends TestCase
         Fulltext::appendFulltextSearchString($this->Project, PHP_INT_MAX, 'ignored', self::URL_PARAMS_SECOND);
 
         self::assertSame(0, $this->fixtureRowCount());
+    }
+
+    public function testDatabaseExceptionsAreWrapped(): void
+    {
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->select('*')
+            ->from(QUI\Utils\Doctrine::quoteIdentifier($this->fulltextTable . '_missing'));
+
+        $this->expectException(QUI\Database\Exception::class);
+        SearchDatabase::fetchAllAssociative($QueryBuilder);
     }
 
     private function createCustomItem(int $id, string $title): CustomSearchItem
