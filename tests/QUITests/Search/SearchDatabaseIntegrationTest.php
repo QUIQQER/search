@@ -237,16 +237,38 @@ class SearchDatabaseIntegrationTest extends TestCase
         self::assertSame((string)self::CUSTOM_ID, (string)$result['list'][0]['custom_id']);
     }
 
-    public function testFulltextIntegerLimitCurrentlyRaisesErrorException(): void
+    public function testFulltextIntegerLimitRestrictsResultList(): void
     {
+        $Item = $this->createCustomItem(self::CUSTOM_ID, 'Search PHPUnit Integer Limit Alpha');
+        $SecondItem = $this->createCustomItem(self::CUSTOM_ID_SECOND, 'Search PHPUnit Integer Limit Beta');
+
+        Fulltext::setCustomEntry($this->Project, $Item, [
+            'name' => 'integer-limit-alpha',
+            'title' => 'Search PHPUnit Integer Limit Alpha',
+            'short' => 'integer limit shared fixture',
+            'data' => 'integerlimitneedle alpha',
+            'e_date' => 1_700_000_026
+        ]);
+        Fulltext::setCustomEntry($this->Project, $SecondItem, [
+            'name' => 'integer-limit-beta',
+            'title' => 'Search PHPUnit Integer Limit Beta',
+            'short' => 'integer limit shared fixture',
+            'data' => 'integerlimitneedle beta',
+            'e_date' => 1_700_000_027
+        ]);
+
         $Search = new Fulltext([
             'Project' => $this->Project,
-            'limit' => 5,
+            'limit' => 1,
+            'fields' => ['name', 'title', 'short', 'data'],
+            'datatypes' => ['custom'],
             'relevanceSearch' => false
         ]);
 
-        $this->expectException(\ErrorException::class);
-        $Search->search('search-phpunit');
+        $result = $Search->search('integerlimitneedle');
+
+        self::assertSame(2, (int)$result['count']);
+        self::assertCount(1, $result['list']);
     }
 
     public function testSearchControlBuildsCustomResultsAndCachesThem(): void

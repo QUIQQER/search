@@ -34,7 +34,6 @@ use function implode;
 use function in_array;
 use function is_array;
 use function is_int;
-use function is_integer;
 use function is_string;
 use function json_encode;
 use function key;
@@ -103,7 +102,7 @@ class Fulltext extends QUI\QDOM
             $Project = QUI::getProjectManager()->get();
         }
 
-        if (!$attrLimit || is_integer($attrLimit)) {
+        if (!$attrLimit) {
             $attrLimit = 10;
         }
 
@@ -396,17 +395,17 @@ class Fulltext extends QUI\QDOM
             ";
 
             $Statement = $PDO->prepare($selectQuery);
-            $Statement->bindValue(
-                ':limit1',
-                $limit['prepare'][':limit1'][0],
-                PDO::PARAM_INT
-            );
+            foreach ([':limit1', ':limit2'] as $placeholder) {
+                if (!isset($limit['prepare'][$placeholder])) {
+                    continue;
+                }
 
-            $Statement->bindValue(
-                ':limit2',
-                $limit['prepare'][':limit2'][0],
-                PDO::PARAM_INT
-            );
+                $Statement->bindValue(
+                    $placeholder,
+                    $limit['prepare'][$placeholder][0],
+                    PDO::PARAM_INT
+                );
+            }
 
             foreach ($binds as $placeholder => $bind) {
                 $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
