@@ -21,9 +21,11 @@
     }
   ],
   "support": {
-    "email": "support@pcsg.de"
+    "email": "support@pcsg.de",
+    "url": "https://www.pcsg.de"
   },
   "require": {
+    "php": "^8.2",
     "quiqqer/core": "^2",
     "quiqqer/utils": "^2"
   },
