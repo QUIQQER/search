@@ -1034,15 +1034,27 @@ class Fulltext extends QUI\QDOM
 
             $fields = $Path->query("//quiqqer/search/searchfields/field");
 
+            if ($fields === false) {
+                continue;
+            }
+
             foreach ($fields as $Field) {
-                if (method_exists($Field, 'getAttribute')) {
-                    $result[] = [
-                        'field' => trim($Field->nodeValue),
-                        'type' => $Field->getAttribute('type'),
-                        'fulltext' => (bool)$Field->getAttribute('fulltext'),
-                        'package' => $package
-                    ];
+                if (!$Field instanceof DOMElement) {
+                    continue;
                 }
+
+                $field = trim($Field->nodeValue ?? '');
+
+                if ($field === '') {
+                    continue;
+                }
+
+                $result[] = [
+                    'field' => $field,
+                    'type' => $Field->getAttribute('type'),
+                    'fulltext' => (bool)$Field->getAttribute('fulltext'),
+                    'package' => $package
+                ];
             }
         }
 
