@@ -3,9 +3,11 @@
 namespace QUITests\Search;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use QUI;
 use QUI\Projects\Project;
+use QUI\Projects\Site as ProjectSite;
 use QUI\Search;
 use QUI\Search\Controls\Search as SearchControl;
 use QUI\Search\Database as SearchDatabase;
@@ -18,6 +20,7 @@ class SearchDatabaseIntegrationTest extends TestCase
     private const ORIGIN = 'quiqqer/search-phpunit';
     private const CUSTOM_ID = 2_147_483_002;
     private const CUSTOM_ID_SECOND = 2_147_483_003;
+    private const EXCLUDED_SITE_ID = 2_147_483_004;
     private const URL_PARAMS = ['quiqqer_search_phpunit' => 'standard'];
     private const URL_PARAMS_SECOND = ['quiqqer_search_phpunit' => 'second'];
 
@@ -445,6 +448,50 @@ class SearchDatabaseIntegrationTest extends TestCase
         Quicksearch::removeEntries($this->Project, 0, self::URL_PARAMS_SECOND);
         Fulltext::setEntryData($this->Project, PHP_INT_MAX, ['title' => 'ignored'], self::URL_PARAMS_SECOND);
         Fulltext::appendFulltextSearchString($this->Project, PHP_INT_MAX, 'ignored', self::URL_PARAMS_SECOND);
+
+        self::assertSame(0, $this->fixtureRowCount());
+    }
+
+    public static function excludedSiteProvider(): array
+    {
+        return [
+            'inactive' => [false, false, false],
+            'deleted' => [true, true, false],
+            'not indexed' => [true, false, true]
+        ];
+    }
+
+    #[DataProvider('excludedSiteProvider')]
+    public function testSiteChangeRemovesExcludedSiteEntries(
+        bool $active,
+        bool $deleted,
+        bool $notIndexed
+    ): void {
+        $fixture = [
+            'siteId' => self::EXCLUDED_SITE_ID,
+            'urlParameter' => json_encode(self::URL_PARAMS_SECOND),
+            'origin' => self::ORIGIN
+        ];
+
+        $this->Connection->insert($this->fulltextTable, $fixture);
+        $this->Connection->insert($this->quicksearchTable, $fixture);
+
+        $Site = $this->createMock(ProjectSite::class);
+        $Site->method('getProject')->willReturn($this->Project);
+        $Site->method('getId')->willReturn(self::EXCLUDED_SITE_ID);
+        $Site->method('getAttribute')->willReturnCallback(
+            static fn(string $attribute): mixed => match ($attribute) {
+                'type' => 'quiqqer/core:types/html',
+                'active' => $active,
+                'deleted' => $deleted,
+                'quiqqer.settings.search.not.indexed' => $notIndexed,
+                default => null
+            }
+        );
+
+        self::assertSame(2, $this->fixtureRowCount());
+
+        Search::onSiteChange($Site);
 
         self::assertSame(0, $this->fixtureRowCount());
     }

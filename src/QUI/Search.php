@@ -349,15 +349,12 @@ class Search
             self::setSiteDefaultSettings($Site);
         }
 
-        if (!$Site->getAttribute('active')) {
-            return;
-        }
-
-        if ($Site->getAttribute('deleted')) {
-            return;
-        }
-
-        if ($Site->getAttribute('quiqqer.settings.search.not.indexed')) {
+        if (
+            !$Site->getAttribute('active')
+            || $Site->getAttribute('deleted')
+            || $Site->getAttribute('quiqqer.settings.search.not.indexed')
+        ) {
+            self::onSiteDeactivate($Site);
             return;
         }
 
