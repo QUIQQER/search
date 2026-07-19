@@ -9,6 +9,7 @@ namespace QUI\Search;
 use QUI;
 use QUI\Cron\Manager;
 use QUI\Exception;
+use QUI\Package\Package;
 use QUI\Search;
 
 /**
@@ -20,6 +21,8 @@ use QUI\Search;
  */
 class Cron
 {
+    private const CREATE_SEARCH_DATABASE = '\\QUI\\Search\\Cron::createSearchDatabase';
+
     /**
      * Cron : create search database
      *
@@ -67,5 +70,31 @@ class Cron
                 $Search->createQuicksearch($SearchProject);
             }
         }
+    }
+
+    /**
+     * Update auto-created search crons that still use the former daily interval.
+     */
+    public static function onPackageSetup(Package $Package): void
+    {
+        if ($Package->getName() !== 'quiqqer/search') {
+            return;
+        }
+
+        Database::update(
+            Manager::table(),
+            [
+                'day' => '1',
+                'month' => '1,7'
+            ],
+            [
+                'exec' => self::CREATE_SEARCH_DATABASE,
+                'min' => '0',
+                'hour' => '0',
+                'day' => '*',
+                'month' => '*',
+                'dayOfWeek' => '*'
+            ]
+        );
     }
 }
