@@ -417,12 +417,16 @@ class Search
         }
 
         $selectedFields = ['name', 'title', 'short', 'data'];
-        $Site = $Site->getEdit();
+        $Edit = $Site->getEdit();
 
-        $Site->setAttribute('quiqqer.settings.search.list.fields', []);
-        $Site->setAttribute('quiqqer.settings.search.list.fields.selected', $selectedFields);
+        if (!$Edit instanceof SiteEdit) {
+            throw new QUI\Exception('Could not obtain editable search site.');
+        }
 
-        $Site->save();
+        $Edit->setAttribute('quiqqer.settings.search.list.fields', []);
+        $Edit->setAttribute('quiqqer.settings.search.list.fields.selected', $selectedFields);
+
+        $Edit->save();
     }
 
     /**
