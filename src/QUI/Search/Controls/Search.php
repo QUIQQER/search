@@ -60,6 +60,8 @@ class Search extends QUI\Control
 
     /**
      * Search results runtime cache
+     *
+     * @var array<array-key, mixed>|null
      */
     protected ?array $searchResults = null;
 
