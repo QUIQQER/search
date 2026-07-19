@@ -39,6 +39,14 @@ use function urldecode;
  * Display search results
  *
  * @package QUI\Tags\Controls
+ *
+ * @phpstan-type SearchResult array{
+ *     count: int,
+ *     max: int,
+ *     sheets: int,
+ *     children: list<QUI\Interfaces\Projects\Site>,
+ *     more: bool
+ * }
  */
 class Search extends QUI\Control
 {
@@ -61,7 +69,7 @@ class Search extends QUI\Control
     /**
      * Search results runtime cache
      *
-     * @var array<array-key, mixed>|null
+     * @var SearchResult|null
      */
     protected ?array $searchResults = null;
 
@@ -124,10 +132,10 @@ class Search extends QUI\Control
     /**
      * Execute search and return search result information
      *
-     * @return array<array-key, mixed>|null
+     * @return SearchResult
      * @throws Exception
      */
-    public function search(): ?array
+    public function search(): array
     {
         if (!is_null($this->searchResults)) {
             return $this->searchResults;
