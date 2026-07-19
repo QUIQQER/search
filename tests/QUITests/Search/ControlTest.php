@@ -116,6 +116,36 @@ class ControlTest extends TestCase
         self::assertInstanceOf(QUI\Controls\ChildrenList::class, $Control->getChildrenList());
     }
 
+    public function testSearchControlUsesFieldAndPaginationFallbacks(): void
+    {
+        $Site = $this->getSite();
+        $Site->setAttribute('quiqqer.settings.search.list.fields', []);
+        $Site->setAttribute('quiqqer.settings.search.list.fields.selected', []);
+        $Site->setAttribute('quiqqer.search.sitetypes.search.pagination.type', '');
+
+        $Control = new TestableSearchControl([
+            'Site' => $Site,
+            'searchType' => SearchControl::SEARCH_TYPE_AND,
+            'searchFields' => []
+        ]);
+
+        self::assertContains('name', $Control->defaultFields());
+        self::assertContains('title', $Control->clearFields([]));
+        self::assertSame(['name'], $Control->clearFields(['name', 'invalid']));
+        self::assertSame(SearchControl::SEARCH_TYPE_OR, $Control->getAttribute('searchType'));
+        self::assertSame(SearchControl::PAGINATION_TYPE_PAGINATION, $Control->paginationType());
+
+        $Site->setAttribute('quiqqer.settings.search.list.fields', false);
+
+        $Control = new TestableSearchControl([
+            'Site' => $Site,
+            'searchType' => SearchControl::SEARCH_TYPE_AND,
+            'searchFields' => ['name']
+        ]);
+
+        self::assertSame(SearchControl::SEARCH_TYPE_AND, $Control->getAttribute('searchType'));
+    }
+
     public function testSearchInputSanitizesFieldsAndRequest(): void
     {
         $Input = new TestableSearchInput([
