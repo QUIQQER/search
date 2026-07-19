@@ -338,21 +338,39 @@ class Search
             $start = $host . $start;
         }
 
-        $Template->extendHeader(
-            '
-            <script type="application/ld+json">
-            {
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                "url": "' . $start . '",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": "' . $searchUrl . '?search={search}",
-                    "query-input": "required name=search"
-                }
-            }
-            </script>
-            '
+        $jsonLd = self::buildWebsiteSearchJsonLd($start, $searchUrl);
+
+        if ($jsonLd === null) {
+            return;
+        }
+
+        $Template->extendHeader('<script type="application/ld+json">' . $jsonLd . '</script>');
+    }
+
+    /**
+     * Build script-safe structured data for the website search action.
+     */
+    protected static function buildWebsiteSearchJsonLd(string $start, string $searchUrl): ?string
+    {
+        $json = json_encode(
+            [
+                '@context' => 'https://schema.org',
+                '@type' => 'WebSite',
+                'url' => $start,
+                'potentialAction' => [
+                    '@type' => 'SearchAction',
+                    'target' => $searchUrl . '?search={search}',
+                    'query-input' => 'required name=search'
+                ]
+            ],
+            JSON_UNESCAPED_SLASHES
+            | JSON_UNESCAPED_UNICODE
+            | JSON_HEX_TAG
+            | JSON_HEX_AMP
+            | JSON_HEX_APOS
+            | JSON_HEX_QUOT
         );
+
+        return $json === false ? null : $json;
     }
 }
