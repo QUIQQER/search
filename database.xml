@@ -30,7 +30,6 @@
             <field type="text NULL DEFAULT NULL">rights</field>
             <field type="varchar(255) NULL DEFAULT NULL">datatype</field>
             <field type="varchar(255) NULL DEFAULT NULL">icon</field>
-            <field type="text NULL DEFAULT NULL">rights</field>
             <field type="bigint(11) NULL DEFAULT NULL">custom_id</field>
             <field type="text NULL DEFAULT NULL">custom_data</field>
             <field type="varchar(255) NULL DEFAULT NULL">origin</field>
