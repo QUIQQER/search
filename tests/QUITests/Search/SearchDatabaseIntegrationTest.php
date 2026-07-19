@@ -212,15 +212,29 @@ class SearchDatabaseIntegrationTest extends TestCase
         );
     }
 
-    public function testFulltextInvalidProjectCurrentlyRaisesTypeError(): void
+    public function testFulltextFallsBackToDefaultProject(): void
     {
+        $Item = $this->createCustomItem(self::CUSTOM_ID, 'Search PHPUnit Default Project');
+
+        Fulltext::setCustomEntry($this->Project, $Item, [
+            'name' => 'default-project-result',
+            'title' => 'Search PHPUnit Default Project',
+            'short' => 'default project fallback',
+            'data' => 'defaultprojectneedle searchable content',
+            'e_date' => 1_700_000_025
+        ]);
+
         $Search = new Fulltext([
             'Project' => false,
+            'limit' => '0,10',
+            'fields' => ['name', 'title', 'short', 'data'],
             'relevanceSearch' => false
         ]);
 
-        $this->expectException(\TypeError::class);
-        $Search->search('search-phpunit');
+        $result = $Search->search('defaultprojectneedle');
+
+        self::assertSame(1, (int)$result['count']);
+        self::assertSame((string)self::CUSTOM_ID, (string)$result['list'][0]['custom_id']);
     }
 
     public function testFulltextIntegerLimitCurrentlyRaisesErrorException(): void

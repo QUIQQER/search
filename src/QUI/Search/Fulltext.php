@@ -99,7 +99,7 @@ class Fulltext extends QUI\QDOM
         $attrLimit = $this->getAttribute('limit');
         $attrFields = $this->getAttribute('fields');
 
-        if (get_class($Project) !== 'QUI\Projects\Project') {
+        if (!$Project instanceof Project) {
             $Project = QUI::getProjectManager()->get();
         }
 
