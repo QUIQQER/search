@@ -46,7 +46,12 @@ class Search extends QUI\Control
     const SEARCH_TYPE_AND = 'AND';
 
     const PAGINATION_TYPE_PAGINATION = 'pagination';
-    const PAGINATION_TYPE_INIFINITESCROLL = 'infinitescroll';
+    const PAGINATION_TYPE_INFINITESCROLL = 'infinitescroll';
+
+    /**
+     * @deprecated Use PAGINATION_TYPE_INFINITESCROLL instead.
+     */
+    const PAGINATION_TYPE_INIFINITESCROLL = self::PAGINATION_TYPE_INFINITESCROLL;
 
     /**
      * Site the control is on

@@ -136,6 +136,12 @@ class ControlTest extends TestCase
 
     public function testSearchControlUsesFieldAndPaginationFallbacks(): void
     {
+        self::assertSame('infinitescroll', SearchControl::PAGINATION_TYPE_INFINITESCROLL);
+        self::assertSame(
+            SearchControl::PAGINATION_TYPE_INFINITESCROLL,
+            SearchControl::PAGINATION_TYPE_INIFINITESCROLL
+        );
+
         $Site = $this->getSite();
         $Site->setAttribute('quiqqer.settings.search.list.fields', []);
         $Site->setAttribute('quiqqer.settings.search.list.fields.selected', []);
