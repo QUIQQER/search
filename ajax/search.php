@@ -14,7 +14,7 @@ use QUI\Utils\Security\Orthos;
  * @param string $searchParams - search parameters
  * @return array - search result data
  */
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_search_ajax_search',
     function ($project, $siteId, $searchParams) {
         $Project = QUI::getProjectManager()->decode($project);

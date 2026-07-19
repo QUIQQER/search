@@ -12,7 +12,7 @@
  *
  * @return string
  */
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_search_ajax_suggest',
     function ($project, $siteId, $search) {
         $Project = QUI::getProjectManager()->decode($project);

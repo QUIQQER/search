@@ -6,16 +6,18 @@
 
 namespace QUI\Search;
 
-use PDO;
+use Doctrine\DBAL\Query\QueryBuilder;
 use QUI;
 use QUI\Database\Exception;
 use QUI\ExceptionStack;
 use QUI\Projects\Project;
 use QUI\Search;
 use QUI\Search\Items\CustomSearchItem;
+use QUI\Utils\Doctrine;
 use QUI\Utils\Security\Orthos;
 
 use function is_array;
+use function is_string;
 use function json_encode;
 
 /**
@@ -32,7 +34,7 @@ class Quicksearch extends QUI\QDOM
     /**
      * Constructor
      *
-     * @param array $params - Attributes
+     * @param array<string, mixed> $params Attributes
      */
     public function __construct(array $params = [])
     {
@@ -49,17 +51,12 @@ class Quicksearch extends QUI\QDOM
      *
      * @param string $str
      * @param Project $Project
-     * @param array $params - Query params
-     *                        $params['limit'] = default: 10
+     * @param array{limit?: int|string, group?: bool} $params Query parameters
      *
-     * @return array array(
-     *        'list'   => array list of results
-     *        'count'  => count of results
-     * )
+     * @return array{list: list<array<string, mixed>>, count: mixed}
      */
     public function search(string $str, Project $Project, array $params = []): array
     {
-        $PDO = QUI::getPDO();
         $table = QUI::getDBProjectTableName(
             Search::TABLE_SEARCH_QUICK,
             $Project
@@ -69,134 +66,95 @@ class Quicksearch extends QUI\QDOM
             $params['limit'] = 10;
         }
 
-        $search = '%' . $str . '%';
-        $limit = QUI\Database\DB::createQueryLimit($params['limit']);
-        $binds = [];
-
         // restrict search to certain site types
-        $siteTypes = $this->getAttribute('siteTypes');
-        $siteTypesQuery = '';
+        $siteTypesAttribute = $this->getAttribute('siteTypes');
+        $siteTypes = [];
 
-        if ($siteTypes) {
-            if (!is_array($siteTypes)) {
-                $siteTypes = [$siteTypes];
-            }
-
-            $siteTypesQuery = ' AND (';
-
-            for ($i = 0, $len = count($siteTypes); $i < $len; $i++) {
-                $siteTypesQuery .= ' siteType LIKE :type' . $i;
-
-                if ($len - 1 > $i) {
-                    $siteTypesQuery .= ' OR ';
+        if (is_string($siteTypesAttribute) && $siteTypesAttribute !== '') {
+            $siteTypes[] = $siteTypesAttribute;
+        } elseif (is_array($siteTypesAttribute)) {
+            foreach ($siteTypesAttribute as $siteType) {
+                if (is_string($siteType) && $siteType !== '') {
+                    $siteTypes[] = $siteType;
                 }
-
-                $binds['type' . $i] = [
-                    'value' => $siteTypes[$i],
-                    'type' => PDO::PARAM_STR
-                ];
             }
-
-            $siteTypesQuery .= ' )';
         }
 
-        // ANY_VALUE() satisfies MySQL 5.7+ ONLY_FULL_GROUP_BY mode, but MariaDB
-        // does not provide that function (and does not enable ONLY_FULL_GROUP_BY
-        // by default), so it must keep using the plain SELECT below.
-        $serverVersion = (string)$PDO->getAttribute(PDO::ATTR_SERVER_VERSION);
-        $isMariaDB = stripos($serverVersion, 'mariadb') !== false;
+        $group = !isset($params['group']) || $params['group'] !== false;
+        $BaseQuery = $this->createSearchQuery($table, '%' . $str . '%', $siteTypes);
+        $CountQuery = clone $BaseQuery;
 
-        if (!$isMariaDB && version_compare(QUI::getDataBase()->getVersion(), '5.7.0') >= 0) {
-            $query = "
-                SELECT ANY_VALUE(id) AS id,
-                    siteId, 
-                    urlParameter, 
-                    ANY_VALUE(data) AS data, 
-                    ANY_VALUE(rights) AS rights, 
-                    ANY_VALUE(icon) AS icon,
-                    siteType,
-                    custom_id,
-                    custom_data,
-                    origin
-            ";
+        if ($group) {
+            $GroupedIdsQuery = clone $BaseQuery;
+            $GroupedIdsQuery
+                ->select('MIN(quicksearch.' . Doctrine::quoteIdentifier('id') . ')')
+                ->groupBy('quicksearch.' . Doctrine::quoteIdentifier('data'));
+
+            $QueryBuilder = QUI::getQueryBuilder();
+            $QueryBuilder
+                ->select('quicksearch.*')
+                ->from(Doctrine::quoteIdentifier($table), 'quicksearch')
+                ->where(
+                    'quicksearch.' . Doctrine::quoteIdentifier('id')
+                    . ' IN (' . $GroupedIdsQuery->getSQL() . ')'
+                )
+                ->setParameters(
+                    $GroupedIdsQuery->getParameters(),
+                    $GroupedIdsQuery->getParameterTypes()
+                );
+
+            $CountQuery->select(
+                'COUNT(DISTINCT quicksearch.' . Doctrine::quoteIdentifier('data') . ')'
+            );
         } else {
-            $query = "SELECT id, siteId, urlParameter, data, rights, icon, siteType, custom_id, custom_data, origin";
+            $QueryBuilder = clone $BaseQuery;
+            $QueryBuilder->select('quicksearch.*');
+            $CountQuery->select('COUNT(*)');
         }
 
-
-        $query .= "
-            FROM
-                {$table}
-            WHERE
-                data LIKE :search
-                {$siteTypesQuery}
-            GROUP BY siteId, urlParameter, id
-        ";
-
-        $selectQuery = "$query {$limit['limit']}";
-
-        $countQuery = "
-            SELECT COUNT(*) as count
-            FROM ($query) as T
-        ";
-
-        // search
-        $Statement = $PDO->prepare($selectQuery);
-        $Statement->bindValue(':search', $search);
-
-        foreach ($binds as $placeholder => $bind) {
-            $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
-        }
-
-        if (isset($limit['prepare'][':limit1'])) {
-            $Statement->bindValue(
-                ':limit1',
-                $limit['prepare'][':limit1'][0],
-                PDO::PARAM_INT
-            );
-        }
-
-        if (isset($limit['prepare'][':limit2'])) {
-            $Statement->bindValue(
-                ':limit2',
-                $limit['prepare'][':limit2'][0],
-                PDO::PARAM_INT
-            );
-        }
-
-        $Statement->execute();
-
-        $result = $Statement->fetchAll(PDO::FETCH_ASSOC);
-
-        if (!isset($params['group']) || $params['group'] !== false) {
-            $groups = [];
-
-            foreach ($result as $k => $row) {
-                if (isset($groups[$row['data']])) {
-                    unset($result[$k]);
-                    continue;
-                }
-
-                $groups[$row['data']] = true;
-            }
-        }
-
-        // count
-        $Statement = $PDO->prepare($countQuery);
-        $Statement->bindValue(':search', $search);
-
-        foreach ($binds as $placeholder => $bind) {
-            $Statement->bindValue(':' . $placeholder, $bind['value'], $bind['type']);
-        }
-
-        $Statement->execute();
-
-        $count = $Statement->fetchAll(PDO::FETCH_ASSOC);
+        $QueryBuilder->orderBy('quicksearch.' . Doctrine::quoteIdentifier('id'));
+        Doctrine::applyLimit($QueryBuilder, $params['limit']);
 
         return [
-            'list' => $result,
-            'count' => $count[0]['count']
+            'list' => Database::fetchAllAssociative($QueryBuilder),
+            'count' => Database::fetchOne($CountQuery)
         ];
+    }
+
+    /**
+     * @param list<string> $siteTypes
+     */
+    private function createSearchQuery(string $table, string $search, array $siteTypes): QueryBuilder
+    {
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->from(Doctrine::quoteIdentifier($table), 'quicksearch')
+            ->where(
+                $QueryBuilder->expr()->like(
+                    'quicksearch.' . Doctrine::quoteIdentifier('data'),
+                    ':search'
+                )
+            )
+            ->setParameter('search', $search);
+
+        if (empty($siteTypes)) {
+            return $QueryBuilder;
+        }
+
+        $siteTypeExpressions = [];
+
+        foreach ($siteTypes as $index => $siteType) {
+            $parameter = 'siteType' . $index;
+            $siteTypeExpressions[] = $QueryBuilder->expr()->like(
+                'quicksearch.' . Doctrine::quoteIdentifier('siteType'),
+                ':' . $parameter
+            );
+            $QueryBuilder->setParameter($parameter, $siteType);
+        }
+
+        $QueryBuilder->andWhere($QueryBuilder->expr()->or(...$siteTypeExpressions));
+
+        return $QueryBuilder;
     }
 
     /**
@@ -209,8 +167,8 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $data - data array -> every array entry is a data entry
-     * @param array $siteParams - optional; Parameter for the site link
+     * @param list<string> $data Every entry is a search string
+     * @param array<string, string> $siteParams Optional parameters for the site link
      * @throws Exception
      * @throws ExceptionStack
      */
@@ -264,7 +222,7 @@ class Quicksearch extends QUI\QDOM
 
         // data
         foreach ($data as $dataEntry) {
-            QUI::getDataBase()->insert($table, [
+            Database::insert($table, [
                 'siteId' => $siteId,
                 'urlParameter' => $urlParameter,
                 'data' => Orthos::clearMySQL($dataEntry, false),
@@ -284,7 +242,7 @@ class Quicksearch extends QUI\QDOM
      * @param Project $Project
      * @param integer $siteId
      * @param string $data
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      * @throws Exception
      */
     public static function addEntry(
@@ -318,11 +276,10 @@ class Quicksearch extends QUI\QDOM
         }
 
         $urlParameter = json_encode($siteParams);
-//        $data         = QUI::getPDO()->quote($data);
 
         // check if entry exists
         if (self::existsEntry($Project, $siteId, $data, $siteParams)) {
-            QUI::getDataBase()->update(
+            Database::update(
                 $table,
                 [
                     'rights' => null, // @todo auf was richtiges setzen, wenn der parameter implementiert wird
@@ -339,7 +296,7 @@ class Quicksearch extends QUI\QDOM
             return;
         }
 
-        QUI::getDataBase()->insert($table, [
+        Database::insert($table, [
             'siteId' => $siteId,
             'urlParameter' => $urlParameter,
             'data' => $data,
@@ -352,7 +309,7 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      * @throws Exception
      */
     public static function removeEntries(
@@ -369,10 +326,27 @@ class Quicksearch extends QUI\QDOM
             return;
         }
 
-        QUI::getDataBase()->delete($table, [
+        Database::delete($table, [
             'siteId' => $siteId,
             'urlParameter' => json_encode($siteParams)
         ]);
+    }
+
+    /**
+     * Delete all quicksearch entries belonging to a site.
+     */
+    public static function removeSiteEntries(Project $Project, int $siteId): void
+    {
+        if (!$siteId) {
+            return;
+        }
+
+        Database::delete(
+            QUI::getDBProjectTableName(Search::TABLE_SEARCH_QUICK, $Project),
+            [
+                'siteId' => $siteId
+            ]
+        );
     }
 
     /**
@@ -380,9 +354,9 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      *
-     * @return array
+     * @return array<string, mixed>
      *
      * @throws QUI\Exception
      */
@@ -398,21 +372,24 @@ class Quicksearch extends QUI\QDOM
 
         $urlParameter = json_encode($siteParams);
 
-        $result = QUI::getDataBase()->fetch([
-            'from' => $table,
-            'where' => [
-                'siteId' => $siteId,
-                'urlParameter' => $urlParameter
-            ]
-        ]);
+        $QueryBuilder = QUI::getQueryBuilder();
+        $QueryBuilder
+            ->select('*')
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('siteId'), ':siteId'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('urlParameter'), ':urlParameter'))
+            ->setParameter('siteId', $siteId)
+            ->setParameter('urlParameter', $urlParameter)
+            ->setMaxResults(1);
+        $result = Database::fetchAssociative($QueryBuilder);
 
-        if (!isset($result[0])) {
+        if ($result === false) {
             throw new QUI\Exception(
                 'Quicksearch entry not exists'
             );
         }
 
-        return $result[0];
+        return $result;
     }
 
     /**
@@ -421,7 +398,7 @@ class Quicksearch extends QUI\QDOM
      * @param Project $Project
      * @param int $siteId
      * @param string $data
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      * @return bool
      * @throws Exception
      */
@@ -438,17 +415,19 @@ class Quicksearch extends QUI\QDOM
 
         $urlParameter = json_encode($siteParams);
 
-        $result = QUI::getDataBase()->fetch([
-            'count' => 1,
-            'from' => $table,
-            'where' => [
-                'siteId' => $siteId,
-                'data' => $data,
-                'urlParameter' => $urlParameter
-            ]
-        ]);
+        $QueryBuilder = QUI::getQueryBuilder();
 
-        return boolval(current(current($result)));
+        $QueryBuilder
+            ->select('COUNT(*)')
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('siteId'), ':siteId'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('data'), ':data'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('urlParameter'), ':urlParameter'))
+            ->setParameter('siteId', $siteId)
+            ->setParameter('data', $data)
+            ->setParameter('urlParameter', $urlParameter);
+
+        return (bool)Database::fetchOne($QueryBuilder);
     }
 
     // region Custom entries
@@ -458,7 +437,7 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param CustomSearchItem $CustomFulltextItem
-     * @param array $searchStrings - every item represents a searchable string
+     * @param list<string> $searchStrings Every item represents a searchable string
      */
     public static function setCustomEntry(
         Project $Project,
@@ -482,7 +461,7 @@ class Quicksearch extends QUI\QDOM
 
             try {
                 if (self::existsCustomEntry($Project, $CustomFulltextItem, $searchString)) {
-                    QUI::getDataBase()->update(
+                    Database::update(
                         $table,
                         [
                             'icon' => $baseEntryData['icon'],
@@ -496,7 +475,7 @@ class Quicksearch extends QUI\QDOM
                     );
                 } else {
                     $baseEntryData['data'] = $searchString;
-                    QUI::getDataBase()->insert($table, $baseEntryData);
+                    Database::insert($table, $baseEntryData);
                 }
             } catch (\Exception $Exception) {
                 QUI\System\Log::writeException($Exception);
@@ -521,16 +500,19 @@ class Quicksearch extends QUI\QDOM
     ): bool {
         $table = QUI::getDBProjectTableName(Search::TABLE_SEARCH_QUICK, $Project);
 
-        $result = QUI::getDataBase()->fetch([
-            'from' => $table,
-            'where' => [
-                'custom_id' => $CustomFulltextItem->getId(),
-                'origin' => $CustomFulltextItem->getOrigin(),
-                'data' => $searchString
-            ]
-        ]);
+        $QueryBuilder = QUI::getQueryBuilder();
 
-        return !empty($result);
+        $QueryBuilder
+            ->select('COUNT(*)')
+            ->from(Doctrine::quoteIdentifier($table))
+            ->where($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('custom_id'), ':customId'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('origin'), ':origin'))
+            ->andWhere($QueryBuilder->expr()->eq(Doctrine::quoteIdentifier('data'), ':data'))
+            ->setParameter('customId', $CustomFulltextItem->getId())
+            ->setParameter('origin', $CustomFulltextItem->getOrigin())
+            ->setParameter('data', $searchString);
+
+        return (bool)Database::fetchOne($QueryBuilder);
     }
 
     /**
@@ -543,7 +525,7 @@ class Quicksearch extends QUI\QDOM
      */
     public static function removeCustomEntries(Project $Project, CustomSearchItem $CustomSearchItem): void
     {
-        QUI::getDataBase()->delete(
+        Database::delete(
             QUI::getDBProjectTableName(Search::TABLE_SEARCH_QUICK, $Project),
             [
                 'siteType' => 'custom',
@@ -562,7 +544,7 @@ class Quicksearch extends QUI\QDOM
      */
     public static function clearSearchTable(Project $Project): void
     {
-        QUI::getDataBase()->table()->truncate(
+        Database::truncate(
             QUI::getDBProjectTableName(Search::TABLE_SEARCH_QUICK, $Project)
         );
     }

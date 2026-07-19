@@ -21,9 +21,11 @@
     }
   ],
   "support": {
-    "email": "support@pcsg.de"
+    "email": "support@pcsg.de",
+    "url": "https://www.pcsg.de"
   },
   "require": {
+    "php": "^8.2",
     "quiqqer/core": "^2",
     "quiqqer/utils": "^2"
   },
@@ -31,6 +33,11 @@
     "psr-4": {
       "QUI\\": "src/QUI",
       "QUI\\Search\\": "src/QUI/Search"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "QUITests\\Search\\": "tests/QUITests/Search"
     }
   },
   "scripts": {

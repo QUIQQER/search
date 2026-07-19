@@ -11,7 +11,7 @@
  * @param array $getParams - Search get params
  * @return string|false - SearchSite URL with search params or false if no SearchSite set
  */
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_search_ajax_getSearchSiteUrl',
     function ($project, $getParams) {
         $getParams = json_decode($getParams, true);
