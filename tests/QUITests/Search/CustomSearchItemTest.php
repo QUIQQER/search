@@ -67,7 +67,7 @@ class CustomSearchItemTest extends TestCase
 
         $this->Item->decode('{}');
         $this->Item->refresh();
-        $this->Item->delete();
+        self::assertFalse($this->Item->delete());
         $this->Item->restore();
         $this->Item->destroy();
         $this->Item->deleteCache();

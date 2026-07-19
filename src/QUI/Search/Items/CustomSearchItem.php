@@ -335,8 +335,9 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      *
      * @todo move to Site/Edit
      */
-    public function delete(): void
+    public function delete(): bool
     {
+        return false;
     }
 
     /**
