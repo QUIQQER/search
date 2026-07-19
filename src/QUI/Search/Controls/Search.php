@@ -66,7 +66,7 @@ class Search extends QUI\Control
     /**
      * constructor
      *
-     * @param array $attributes
+     * @param array<string, mixed> $attributes
      * @throws Exception
      */
     public function __construct(array $attributes = [])
@@ -121,6 +121,8 @@ class Search extends QUI\Control
 
     /**
      * Execute search and return search result information
+     *
+     * @return array<array-key, mixed>|null
      * @throws Exception
      */
     public function search(): ?array
@@ -398,8 +400,8 @@ class Search extends QUI\Control
     /**
      * Clears the given search fields (remove invalid fields)
      *
-     * @param array $fields
-     * @return array - cleared fields
+     * @param array<array-key, mixed> $fields
+     * @return array<array-key, mixed> Cleared fields
      */
     protected function clearSearchFields(array $fields): array
     {
@@ -621,7 +623,7 @@ class Search extends QUI\Control
     /**
      * Get the default search fields
      *
-     * @return array
+     * @return array<array-key, mixed>
      */
     protected function getDefaultSearchFields(): array
     {
@@ -660,7 +662,7 @@ class Search extends QUI\Control
     /**
      * Get attributes for the javascript control
      *
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getJavaScriptControlAttributes(): array
     {

@@ -23,7 +23,7 @@ class Cron
     /**
      * Cron : create search database
      *
-     * @param array $params
+     * @param array{project?: string, lang?: string} $params
      * @param Manager $CronManager
      * @throws Exception
      */
@@ -47,7 +47,7 @@ class Cron
     /**
      * Create search database for all projects and all languages
      *
-     * @param array $params
+     * @param array<string, mixed> $params
      * @param Manager $CronManager
      * @return void
      * @throws Exception

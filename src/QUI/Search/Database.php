@@ -11,6 +11,9 @@ use QUI\Utils\Doctrine;
 
 final class Database
 {
+    /**
+     * @return list<array<string, mixed>>
+     */
     public static function fetchAllAssociative(QueryBuilder $QueryBuilder): array
     {
         try {
@@ -20,6 +23,9 @@ final class Database
         }
     }
 
+    /**
+     * @return array<string, mixed>|false
+     */
     public static function fetchAssociative(QueryBuilder $QueryBuilder): array|false
     {
         try {
@@ -38,6 +44,9 @@ final class Database
         }
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function insert(string $table, array $data): void
     {
         try {
@@ -47,6 +56,10 @@ final class Database
         }
     }
 
+    /**
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $criteria
+     */
     public static function update(string $table, array $data, array $criteria): void
     {
         try {
@@ -56,6 +69,9 @@ final class Database
         }
     }
 
+    /**
+     * @param array<string, mixed> $criteria
+     */
     public static function delete(string $table, array $criteria): void
     {
         try {

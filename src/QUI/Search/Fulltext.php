@@ -66,7 +66,7 @@ class Fulltext extends QUI\QDOM
     /**
      * Constructor
      *
-     * @param array $params - Attributes
+     * @param array<string, mixed> $params Attributes
      */
     public function __construct(array $params = [])
     {
@@ -94,10 +94,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param string $str - search string
      *
-     * @return array array(
-     *        'list'   => array list of results
-     *        'count'  => count of results
-     * )
+     * @return array{list: list<array<string, mixed>>, count: mixed}
      *
      * @throws QUI\Exception
      */
@@ -459,14 +456,14 @@ class Fulltext extends QUI\QDOM
     /**
      * Build LIKE search query and binds
      *
-     * @param array $selectedFields
+     * @param array<mixed> $selectedFields
      * @param string $str
-     * @param array $fields
+     * @param list<string> $fields
      * @param string $table
      * @param string $whereFieldConstraints
      * @param string $datatypeQuery
      * @param list<array{field: string, direction: string}> $order
-     * @param array $binds
+     * @param array<string, mixed> $binds
      */
     private function buildLikeQuery(
         array $selectedFields,
@@ -589,6 +586,9 @@ class Fulltext extends QUI\QDOM
         $QueryBuilder->addOrderBy($fallbackField, $fallbackDirection);
     }
 
+    /**
+     * @return array{list: list<array<string, mixed>>, count: mixed}
+     */
     private function executeSearchQuery(QueryBuilder $QueryBuilder, mixed $limit): array
     {
         $ListQuery = clone $QueryBuilder;
@@ -621,8 +621,8 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $params
-     * @param array $siteParams - optional; Parameter for the site link
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $siteParams Optional parameters for the site link
      * @throws ExceptionStack|Exception
      */
     public static function setEntry(
@@ -644,7 +644,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project - Project
      * @param integer $siteId - ID of the site
-     * @param array $siteParams - (optional); Parameter for the site link
+     * @param array<string, mixed> $siteParams Optional parameters for the site link
      *
      * @return void
      * @throws Exception
@@ -667,8 +667,8 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $params
-     * @param array $siteParams - optional; Parameter for the site link
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $siteParams Optional parameters for the site link
      * @throws Exception
      */
     public static function setEntryData(
@@ -747,7 +747,7 @@ class Fulltext extends QUI\QDOM
      * @param Project $Project
      * @param integer $siteId
      * @param string $data
-     * @param array $siteParams
+     * @param array<string, mixed> $siteParams
      * @throws Exception
      * @throws QUI\Exception
      */
@@ -792,9 +792,9 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $siteParams
+     * @param array<string, mixed> $siteParams
      *
-     * @return mixed
+     * @return array<string, mixed>
      * @throws Exception
      * @throws QUI\Exception
      */
@@ -837,7 +837,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param CustomSearchItem $CustomFulltextItem
-     * @param array $params (optional) - fulltext search table column values
+     * @param array<string, mixed> $params Optional fulltext search table column values
      * @throws Exception
      */
     public static function setCustomEntry(
@@ -886,7 +886,7 @@ class Fulltext extends QUI\QDOM
      *
      * @param Project $Project
      * @param CustomSearchItem $CustomFulltextItem
-     * @return array - Entry data as array (straight from db)
+     * @return array<string, mixed> Entry data straight from the database
      *
      * @throws QUI\Exception
      */
@@ -1023,7 +1023,7 @@ class Fulltext extends QUI\QDOM
     /**
      * Return the search fields
      *
-     * @return array
+     * @return list<array{field: string, type: string, fulltext: bool, package: string}>
      */
     public static function getFieldList(): array
     {
@@ -1063,7 +1063,7 @@ class Fulltext extends QUI\QDOM
     /**
      * Return the plugins with a search.xml file
      *
-     * @return array
+     * @return array<string, string>
      */
     public static function getSearchXmlList(): array
     {

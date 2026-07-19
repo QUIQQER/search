@@ -33,7 +33,7 @@ class Quicksearch extends QUI\QDOM
     /**
      * Constructor
      *
-     * @param array $params - Attributes
+     * @param array<string, mixed> $params Attributes
      */
     public function __construct(array $params = [])
     {
@@ -50,13 +50,9 @@ class Quicksearch extends QUI\QDOM
      *
      * @param string $str
      * @param Project $Project
-     * @param array $params - Query params
-     *                        $params['limit'] = default: 10
+     * @param array{limit?: int|string, group?: bool} $params Query parameters
      *
-     * @return array array(
-     *        'list'   => array list of results
-     *        'count'  => count of results
-     * )
+     * @return array{list: list<array<string, mixed>>, count: mixed}
      */
     public function search(string $str, Project $Project, array $params = []): array
     {
@@ -167,8 +163,8 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $data - data array -> every array entry is a data entry
-     * @param array $siteParams - optional; Parameter for the site link
+     * @param list<string> $data Every entry is a search string
+     * @param array<string, string> $siteParams Optional parameters for the site link
      * @throws Exception
      * @throws ExceptionStack
      */
@@ -242,7 +238,7 @@ class Quicksearch extends QUI\QDOM
      * @param Project $Project
      * @param integer $siteId
      * @param string $data
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      * @throws Exception
      */
     public static function addEntry(
@@ -309,7 +305,7 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      * @throws Exception
      */
     public static function removeEntries(
@@ -337,9 +333,9 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param integer $siteId
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      *
-     * @return array
+     * @return array<string, mixed>
      *
      * @throws QUI\Exception
      */
@@ -381,7 +377,7 @@ class Quicksearch extends QUI\QDOM
      * @param Project $Project
      * @param int $siteId
      * @param string $data
-     * @param array $siteParams
+     * @param array<string, string> $siteParams
      * @return bool
      * @throws Exception
      */
@@ -420,7 +416,7 @@ class Quicksearch extends QUI\QDOM
      *
      * @param Project $Project
      * @param CustomSearchItem $CustomFulltextItem
-     * @param array $searchStrings - every item represents a searchable string
+     * @param list<string> $searchStrings Every item represents a searchable string
      */
     public static function setCustomEntry(
         Project $Project,
