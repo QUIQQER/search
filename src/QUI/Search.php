@@ -203,11 +203,11 @@ class Search
         );
 
         // remove entries from tables
-        QUI::getDataBase()->delete($tableSearchFull, [
+        QUI::getDataBaseConnection()->delete($tableSearchFull, [
             'siteId' => $Site->getId()
         ]);
 
-        QUI::getDataBase()->delete($tableQuicksearch, [
+        QUI::getDataBaseConnection()->delete($tableQuicksearch, [
             'siteId' => $Site->getId()
         ]);
     }
