@@ -8,6 +8,17 @@
             <locale group="quiqqer/search" var="package.description"/>
         </description>
 
+        <capabilities schemaVersion="1">
+            <capability id="search.frontend-site-search">
+                <title>Frontend site search</title>
+                <description>
+                    Provides relevance-ranked frontend search across project sites and registered custom content, with
+                    configurable fields and content types, autocomplete suggestions, and paginated or infinite-scroll
+                    results.
+                </description>
+            </capability>
+        </capabilities>
+
         <image src="URL_OPT_DIR/quiqqer/search/bin/images/Logo.jpg"/>
 
         <preview>

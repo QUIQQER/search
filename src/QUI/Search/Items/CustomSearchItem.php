@@ -126,9 +126,9 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     /**
      * Prüft ob es eine Verknüpfung ist
      *
-     * @return boolean|integer
+     * @return false|integer
      */
-    public function isLinked(): bool | int
+    public function isLinked(): false | int
     {
         return false;
     }
@@ -241,7 +241,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      *
      * @return QUI\Projects\Site | false
      */
-    public function firstChild(array $params = []): QUISiteInterface | bool
+    public function firstChild(array $params = []): QUISiteInterface | false
     {
         return false;
     }
@@ -355,9 +355,10 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
 
     /**
      * @param array<string, mixed> $params
+     * @param array<string, mixed> $getParams
      * @return string
      */
-    public function getUrlRewritten(array $params = []): string
+    public function getUrlRewritten(array $params = [], array $getParams = []): string
     {
         return $this->url;
     }
@@ -404,7 +405,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
      * @return QUISiteInterface|false
      * @throws Exception
      */
-    public function getParent(): QUISiteInterface | bool
+    public function getParent(): QUISiteInterface | false
     {
         return $this->getProject()->get(1);
     }

@@ -61,6 +61,7 @@ class Cron
         $Search = new Search();
 
         foreach ($projects as $project) {
+            $project = (string)$project;
             $Project = QUI::getProject($project);
 
             foreach ($Project->getLanguages() as $language) {
