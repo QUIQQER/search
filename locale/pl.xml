@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<locales>
+
+    <!-- javascript locale -->
+    <groups name="quiqqer/search" datatype="js">
+
+        <!-- Control: SearchInput -->
+        <locale name="controls.searchinput.searchfieldselect.placeholder">
+            <pl><![CDATA[Ustawienia wyszukiwania]]></pl>
+        </locale>
+
+        <!-- Control: Suggest -->
+        <locale name="controls.Suggest.no_results">
+            <pl><![CDATA[Nie znaleziono wyników]]></pl>
+        </locale>
+
+    </groups>
+
+    <!-- php + javascript locale -->
+    <groups name="quiqqer/search" datatype="php,js">
+        <locale name="package.title">
+            <pl><![CDATA[QUIQQER - Wyszukiwanie]]></pl>
+        </locale>
+        <locale name="package.description">
+            <pl><![CDATA[Ten pakiet udostępnia zaawansowane wyszukiwanie w publicznej części QUIQQER. Pozwala przeszukiwać projekty i porządkować wyniki według trafności.]]></pl>
+        </locale>
+        <locale name="quiqqer/search:types/search.title">
+            <pl><![CDATA[Wyszukiwanie zaawansowane]]></pl>
+        </locale>
+        <locale name="quiqqer/search:types/search.description" html="true">
+            <pl><![CDATA[Ten typ strony oferuje rozbudowane opcje konfiguracji wyszukiwania różnych informacji w QUIQQER. Możesz określić, jakie informacje mają być przeszukiwane i które ustawienia użytkownik może zmieniać w publicznej części witryny.]]></pl>
+        </locale>
+        <locale name="quiqqer/search:types/results.title">
+            <pl><![CDATA[Predefiniowane wyniki wyszukiwania]]></pl>
+        </locale>
+        <locale name="quiqqer/search:types/results.description" html="true">
+            <pl><![CDATA[W ustawieniach tego typu strony można z góry określić parametry wyszukiwania. Pozwala to wyświetlać odwiedzającym wybrane wyniki, np. określone typy stron, bez ręcznego tworzenia listy. Użytkownik nie może samodzielnie przeprowadzać wyszukiwania. Ten typ strony umożliwia szybkie tworzenie własnych list predefiniowanych wyników.]]></pl>
+        </locale>
+
+        <locale name="tpl.search.no.results">
+            <pl><![CDATA[Nie znaleziono wyników. Użyj innego hasła wyszukiwania.]]></pl>
+        </locale>
+        <locale name="tpl.search.one.result">
+            <pl><![CDATA[Znaleziono jeden wynik.]]></pl>
+        </locale>
+        <locale name="tpl.search.more.result">
+            <pl><![CDATA[Liczba znalezionych wyników: [count].]]></pl>
+        </locale>
+        <locale name="tpl.search.pagination.inifinitescroll.btn.loading">
+            <pl><![CDATA[Ładowanie...]]></pl>
+        </locale>
+
+        <!-- Settings -->
+        <locale name="search.pagination.type">
+            <pl><![CDATA[Typ stronicowania]]></pl>
+        </locale>
+        <locale name="search.pagination.type.pagination">
+            <pl><![CDATA[Standardowe stronicowanie]]></pl>
+        </locale>
+        <locale name="search.pagination.type.infinitescroll">
+            <pl><![CDATA[Automatyczne wczytywanie podczas przewijania (nieskończone przewijanie)]]></pl>
+        </locale>
+        <locale name="search.suggestSearch">
+            <pl><![CDATA[Pokaż sugestie wyszukiwania]]></pl>
+        </locale>
+        <locale name="search.suggestSearch.option.off">
+            <pl><![CDATA[Wyłączone]]></pl>
+        </locale>
+        <locale name="search.suggestSearch.option.clicktosite">
+            <pl><![CDATA[Pokaż sugestie wyszukiwania — kliknięcie sugestii otwiera stronę]]></pl>
+        </locale>
+        <locale name="search.suggestSearch.option.clicktosearch">
+            <pl><![CDATA[Pokaż sugestie wyszukiwania — kliknięcie sugestii wyszukuje jej tekst]]></pl>
+        </locale>
+        <locale name="quiqqer.search.sitetypes.search.filter">
+            <pl><![CDATA[Ogranicz wyszukiwanie do określonych typów stron]]></pl>
+        </locale>
+
+        <!-- search brick -->
+        <locale name="bricks.search.title">
+            <pl><![CDATA[Wyszukiwanie: pole wyszukiwania]]></pl>
+        </locale>
+        <locale name="bricks.search.description">
+            <pl><![CDATA[Umożliwia umieszczenie wyszukiwarki w dowolnym miejscu.]]></pl>
+        </locale>
+        <locale name="bricks.search.resultSite">
+            <pl><![CDATA[Strona z wynikami]]></pl>
+        </locale>
+        <locale name="bricks.search.suggestSearch" html="true">
+            <pl><![CDATA[Podpowiedzi podczas wpisywania? <br/>(Suggest search)]]></pl>
+        </locale>
+        <locale name="bricks.search.placeholder">
+            <pl><![CDATA[Wpisz zapytanie]]></pl>
+        </locale>
+        <locale name="bricks.search.button.value">
+            <pl><![CDATA[Szukaj]]></pl>
+        </locale>
+
+        <!-- cron.xml -->
+        <locale name="cron.title">
+            <pl><![CDATA[Utwórz bazę danych wyszukiwania]]></pl>
+        </locale>
+        <locale name="cron.description">
+            <pl><![CDATA[Analizuje wszystkie aktywne strony i dodaje odpowiednie dane do bazy wyszukiwania pełnotekstowego i szybkiego]]></pl>
+        </locale>
+        <locale name="cron.param.project">
+            <pl><![CDATA[Nazwa projektu]]></pl>
+        </locale>
+        <locale name="cron.param.lang">
+            <pl><![CDATA[Język projektu]]></pl>
+        </locale>
+        <locale name="cron.all_projects.title">
+            <pl><![CDATA[Utwórz bazę danych wyszukiwania (wszystkie projekty)]]></pl>
+        </locale>
+        <locale name="cron.all_projects.description">
+            <pl><![CDATA[Tworzy bazę danych wyszukiwania dla wszystkich projektów we wszystkich językach, do wyszukiwania szybkiego i pełnotekstowego]]></pl>
+        </locale>
+
+        <!-- search template -->
+        <locale name="tpl.search.button">
+            <pl><![CDATA[Rozpocznij wyszukiwanie]]></pl>
+        </locale>
+        <locale name="tpl.search.placeholder">
+            <pl><![CDATA[Wpisz tutaj zapytanie...]]></pl>
+        </locale>
+        <locale name="tpl.search.list.more">
+            <pl><![CDATA[więcej]]></pl>
+        </locale>
+        <locale name="tpl.search.relevance">
+            <pl><![CDATA[Trafność:]]></pl>
+        </locale>
+
+        <locale name="tpl.search.and.type">
+            <pl><![CDATA[Wyniki muszą zawierać wszystkie słowa.]]></pl>
+        </locale>
+        <locale name="tpl.search.field.searchTypeAnd">
+            <pl><![CDATA[Szukaj wszystkich słów (I)]]></pl>
+        </locale>
+        <locale name="tpl.search.field.name">
+            <pl><![CDATA[Szukaj w nazwach]]></pl>
+        </locale>
+        <locale name="tpl.search.field.title">
+            <pl><![CDATA[Szukaj w tytułach]]></pl>
+        </locale>
+        <locale name="tpl.search.field.short">
+            <pl><![CDATA[Szukaj w krótkim opisie]]></pl>
+        </locale>
+        <locale name="tpl.search.field.data">
+            <pl><![CDATA[Szukaj w treści]]></pl>
+        </locale>
+        <locale name="tpl.search.field.icon">
+            <pl><![CDATA[Szukaj w obrazach]]></pl>
+        </locale>
+        <locale name="tpl.search.field.datatype">
+            <pl><![CDATA[Szukaj według typu strony]]></pl>
+        </locale>
+        <locale name="tpl.search.field.e_date">
+            <pl><![CDATA[Szukaj w dacie modyfikacji strony]]></pl>
+        </locale>
+        <locale name="tpl.search.field.c_date">
+            <pl><![CDATA[Szukaj w dacie utworzenia strony]]></pl>
+        </locale>
+        <locale name="tpl.search.pagination.inifinitescroll.btn">
+            <pl><![CDATA[Wczytaj więcej wyników]]></pl>
+        </locale>
+    </groups>
+
+    <!-- php locale -->
+    <groups name="quiqqer/search" datatype="php">
+
+        <!-- types -->
+        <locale name="admin.types.search">
+            <pl><![CDATA[Wyszukiwanie zaawansowane]]></pl>
+        </locale>
+        <locale name="admin.types.results">
+            <pl><![CDATA[Wyszukiwanie zaawansowane — lista wyników]]></pl>
+        </locale>
+
+        <!-- search global settings -->
+        <locale name="quiqqer.search.globale.settings.title">
+            <pl><![CDATA[Wyszukiwanie]]></pl>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.booleanSearchMaxLength.text">
+            <pl><![CDATA[Minimalna długość zapytania pełnotekstowego]]></pl>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.booleanSearchMaxLength.description">
+            <pl><![CDATA[Określa minimalną długość zapytania, od której używane jest wyszukiwanie pełnotekstowe.]]></pl>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.defaultSearchSite.text">
+            <pl><![CDATA[Domyślna strona wyszukiwania]]></pl>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.defaultSearchSite.description" html="true">
+            <pl><![CDATA[Określa <b>ID strony dla danego języka</b> dla domyślnej strony wyszukiwania. Jest ona używana, gdy element wyszukiwania, np. pole wyszukiwania, zostanie dodany do strony, która nie jest stroną wyszukiwania.]]></pl>
+        </locale>
+        <locale name="project.settings.category.quiqqerSearch.title">
+            <pl><![CDATA[Wyszukiwanie]]></pl>
+        </locale>
+        <locale name="templatePackageStore.settings.general.title">
+            <pl><![CDATA[Ustawienia wyszukiwania]]></pl>
+        </locale>
+
+        <!-- search settings -->
+        <locale name="quiqqer.search.settings.title">
+            <pl><![CDATA[Globalne ustawienia wyszukiwania]]></pl>
+        </locale>
+        <locale name="quiqqer.package.search.not.indexed">
+            <pl><![CDATA[Wyklucz stronę z wyszukiwania.]]></pl>
+        </locale>
+
+        <locale name="quiqqer.search.list.settings.title">
+            <pl><![CDATA[Ustawienia wyszukiwania]]></pl>
+        </locale>
+        <locale name="quiqqer.search.list.settings.max">
+            <pl><![CDATA[Maksymalna liczba wyników na stronie.]]></pl>
+        </locale>
+        <locale name="quiqqer.search.list.hideSettings">
+            <pl><![CDATA[Ukryj ustawienia zaawansowane.]]></pl>
+        </locale>
+
+        <locale name="quiqqer.search.list.settings.title.fields">
+            <pl><![CDATA[Ustawienia wyszukiwania — widoczne opcje]]></pl>
+        </locale>
+        <locale name="quiqqer.search.list.settings.title.fields.selected">
+            <pl><![CDATA[Ustawienia wyszukiwania — wstępnie wybrane pola]]></pl>
+        </locale>
+        <locale name="quiqqer.settings.sitetypes.list.showTime">
+            <pl><![CDATA[Pokaż godzinę]]></pl>
+        </locale>
+        <locale name="quiqqer.settings.sitetypes.list.showRelevance">
+            <pl><![CDATA[Pokaż trafność]]></pl>
+        </locale>
+        <locale name="quiqqer.search.listTemplate.advancedArticleList">
+            <pl><![CDATA[Nowoczesna lista bez obrazków]]></pl>
+        </locale>
+        <locale name="search.listTemplate.standardSearch">
+            <pl><![CDATA[Standardowa lista (z pakietu search)]]></pl>
+        </locale>
+
+
+        <!-- result type settings -->
+        <locale name="quiqqer.search.results.settings.title">
+            <pl><![CDATA[Ustawienia listy wyników]]></pl>
+        </locale>
+        <locale name="quiqqer.search.results.settings.max">
+            <pl><![CDATA[Maksymalna liczba wyników na stronie.]]></pl>
+        </locale>
+        <locale name="quiqqer.search.results.settings.types">
+            <pl><![CDATA[Wybierz typy stron, które mają być wyświetlane na liście.]]></pl>
+        </locale>
+        <locale name="quiqqer.search.results.settings.search_term">
+            <pl><![CDATA[Predefiniowane hasło wyszukiwania]]></pl>
+        </locale>
+        <locale name="quiqqer.search.results.settings.search_term.description">
+            <pl><![CDATA[Określa hasło wyszukiwania, które decyduje o wynikach. Hasło pozostaje zawsze takie samo i jest traktowane tak, jakby użytkownik sam wpisał je w wyszukiwarce.]]></pl>
+        </locale>
+
+    </groups>
+
+</locales>

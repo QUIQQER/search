@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<locales>
+
+    <!-- javascript locale -->
+    <groups name="quiqqer/search" datatype="js">
+
+        <!-- Control: SearchInput -->
+        <locale name="controls.searchinput.searchfieldselect.placeholder">
+            <en><![CDATA[Search settings]]></en>
+        </locale>
+
+        <!-- Control: Suggest -->
+        <locale name="controls.Suggest.no_results">
+            <en><![CDATA[No results were found]]></en>
+        </locale>
+
+    </groups>
+
+    <!-- php + javascript locale -->
+    <groups name="quiqqer/search" datatype="php,js">
+        <locale name="package.title">
+            <en><![CDATA[QUIQQER - Search]]></en>
+        </locale>
+        <locale name="package.description">
+            <en><![CDATA[
+            The package provides an advanced frontend search for QUIQQER. Search your projects through a relevancy search.
+            ]]></en>
+        </locale>
+        <locale name="quiqqer/search:types/search.title">
+            <en><![CDATA[Extended Search]]></en>
+        </locale>
+        <locale name="quiqqer/search:types/search.description" html="true">
+            <en><![CDATA[This page type offers extensive options for configuring searches across different types of information in QUIQQER. You can specify which information is searched and which settings users can adjust in the frontend.]]></en>
+        </locale>
+        <locale name="quiqqer/search:types/results.title">
+            <en><![CDATA[Predefined search results]]></en>
+        </locale>
+        <locale name="quiqqer/search:types/results.description" html="true">
+            <en><![CDATA[You can preset search parameters in the page type settings. This lets you display specific results to visitors, such as certain page types, without creating the list manually. Visitors cannot run their own searches. This page type lets you quickly create custom lists of predefined search results.]]></en>
+        </locale>
+
+        <locale name="tpl.search.no.results">
+            <en><![CDATA[No results found. Please use a different search term.]]></en>
+        </locale>
+        <locale name="tpl.search.one.result">
+            <en><![CDATA[One result has been found.]]></en>
+        </locale>
+        <locale name="tpl.search.more.result">
+            <en><![CDATA[[count] results have been found.]]></en>
+        </locale>
+        <locale name="tpl.search.pagination.inifinitescroll.btn.loading">
+            <en><![CDATA[Loading...]]></en>
+        </locale>
+
+        <!-- Settings -->
+        <locale name="search.pagination.type">
+            <en><![CDATA[Pagination type]]></en>
+        </locale>
+        <locale name="search.pagination.type.pagination">
+            <en><![CDATA[Standard pagination]]></en>
+        </locale>
+        <locale name="search.pagination.type.infinitescroll">
+            <en><![CDATA[Infinite Scrolling]]></en>
+        </locale>
+        <locale name="search.suggestSearch">
+            <en><![CDATA[Show search suggestions]]></en>
+        </locale>
+        <locale name="search.suggestSearch.option.off">
+            <en><![CDATA[Off]]></en>
+        </locale>
+        <locale name="search.suggestSearch.option.clicktosite">
+            <en><![CDATA[Show search suggestions - Clicking a suggestion opens the page]]></en>
+        </locale>
+        <locale name="search.suggestSearch.option.clicktosearch">
+            <en><![CDATA[Show search suggestions - Clicking a suggestion searches for its text]]></en>
+        </locale>
+        <locale name="quiqqer.search.sitetypes.search.filter">
+            <en><![CDATA[Restrict search to certain site types]]></en>
+        </locale>
+
+        <!-- search brick -->
+        <locale name="bricks.search.title">
+            <en><![CDATA[Search: Search field]]></en>
+        </locale>
+        <locale name="bricks.search.description">
+            <en><![CDATA[Create a search brick]]></en>
+        </locale>
+        <locale name="bricks.search.resultSite">
+            <en><![CDATA[Results site]]></en>
+        </locale>
+        <locale name="bricks.search.suggestSearch" html="true">
+            <en><![CDATA[Show suggestions while typing?]]></en>
+        </locale>
+        <locale name="bricks.search.placeholder">
+            <en><![CDATA[Enter your search term]]></en>
+        </locale>
+        <locale name="bricks.search.button.value">
+            <en><![CDATA[Search]]></en>
+        </locale>
+
+        <!-- cron.xml -->
+        <locale name="cron.title">
+            <en><![CDATA[Build search database]]></en>
+        </locale>
+        <locale name="cron.description">
+            <en><![CDATA[Parses active sites and adds relevant data to the fulltext and quicksearch database]]></en>
+        </locale>
+        <locale name="cron.param.project">
+            <en><![CDATA[Project name]]></en>
+        </locale>
+        <locale name="cron.param.lang">
+            <en><![CDATA[Project language]]></en>
+        </locale>
+        <locale name="cron.all_projects.title">
+            <en><![CDATA[Build search database (all projects)]]></en>
+        </locale>
+        <locale name="cron.all_projects.description">
+            <en><![CDATA[Builds the search database for all projects (in all languages; Quick and Fulltext Search)]]></en>
+        </locale>
+
+        <!-- search template -->
+        <locale name="tpl.search.button">
+            <en><![CDATA[Start search]]></en>
+        </locale>
+        <locale name="tpl.search.placeholder">
+            <en><![CDATA[Please insert your search here...]]></en>
+        </locale>
+        <locale name="tpl.search.list.more">
+            <en><![CDATA[more]]></en>
+        </locale>
+        <locale name="tpl.search.relevance">
+            <en><![CDATA[Relevance:]]></en>
+        </locale>
+
+        <locale name="tpl.search.and.type">
+            <en><![CDATA[All words must be included in the result.]]></en>
+        </locale>
+        <locale name="tpl.search.field.searchTypeAnd">
+            <en><![CDATA[AND search]]></en>
+        </locale>
+        <locale name="tpl.search.field.name">
+            <en><![CDATA[Search in names]]></en>
+        </locale>
+        <locale name="tpl.search.field.title">
+            <en><![CDATA[Search in titles]]></en>
+        </locale>
+        <locale name="tpl.search.field.short">
+            <en><![CDATA[Search in short description]]></en>
+        </locale>
+        <locale name="tpl.search.field.data">
+            <en><![CDATA[Search in the content]]></en>
+        </locale>
+        <locale name="tpl.search.field.icon">
+            <en><![CDATA[Search in images]]></en>
+        </locale>
+        <locale name="tpl.search.field.datatype">
+            <en><![CDATA[Search by page type]]></en>
+        </locale>
+        <locale name="tpl.search.field.e_date">
+            <en><![CDATA[Search in page modification date]]></en>
+        </locale>
+        <locale name="tpl.search.field.c_date">
+            <en><![CDATA[Search in page creation date]]></en>
+        </locale>
+        <locale name="tpl.search.pagination.inifinitescroll.btn">
+            <en><![CDATA[Load more results]]></en>
+        </locale>
+    </groups>
+
+    <!-- php locale -->
+    <groups name="quiqqer/search" datatype="php">
+
+        <!-- types -->
+        <locale name="admin.types.search">
+            <en><![CDATA[Extended search]]></en>
+        </locale>
+        <locale name="admin.types.results">
+            <en><![CDATA[Extended search - result list]]></en>
+        </locale>
+
+        <!-- search global settings -->
+        <locale name="quiqqer.search.globale.settings.title">
+            <en><![CDATA[Search]]></en>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.booleanSearchMaxLength.text">
+            <en><![CDATA[Minimum length of the full-text query]]></en>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.booleanSearchMaxLength.description">
+            <en><![CDATA[Specifies the minimum query length at which full-text search is used.]]></en>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.defaultSearchSite.text">
+            <en><![CDATA[Default Search Site]]></en>
+        </locale>
+        <locale name="quiqqer.search.globale.settings.defaultSearchSite.description" html="true">
+            <en><![CDATA[Sets the <b>page ID for each language</b> of the default search page. This page is used when a search control, such as a search input, is added to a page that is not a search page.]]></en>
+        </locale>
+        <locale name="project.settings.category.quiqqerSearch.title">
+            <en><![CDATA[Search]]></en>
+        </locale>
+        <locale name="templatePackageStore.settings.general.title">
+            <en><![CDATA[Search settings]]></en>
+        </locale>
+
+        <!-- search settings -->
+        <locale name="quiqqer.search.settings.title">
+            <en><![CDATA[Global search settings]]></en>
+        </locale>
+        <locale name="quiqqer.package.search.not.indexed">
+            <en><![CDATA[Exclude this page from search.]]></en>
+        </locale>
+
+        <locale name="quiqqer.search.list.settings.title">
+            <en><![CDATA[Search settings]]></en>
+        </locale>
+        <locale name="quiqqer.search.list.settings.max">
+            <en><![CDATA[Maximum number of results per page.]]></en>
+        </locale>
+        <locale name="quiqqer.search.list.hideSettings">
+            <en><![CDATA[Do not show the advanced settings.]]></en>
+        </locale>
+
+        <locale name="quiqqer.search.list.settings.title.fields">
+            <en><![CDATA[Search settings - visible settings]]></en>
+        </locale>
+        <locale name="quiqqer.search.list.settings.title.fields.selected">
+            <en><![CDATA[Search settings - Preselected fields]]></en>
+        </locale>
+        <locale name="quiqqer.settings.sitetypes.list.showTime">
+            <en><![CDATA[Show time]]></en>
+        </locale>
+        <locale name="quiqqer.settings.sitetypes.list.showRelevance">
+            <en><![CDATA[Show relevance]]></en>
+        </locale>
+        <locale name="quiqqer.search.listTemplate.advancedArticleList">
+            <en><![CDATA[Modern list without picture]]></en>
+        </locale>
+        <locale name="search.listTemplate.standardSearch">
+            <en><![CDATA[Standard list (from search)]]></en>
+        </locale>
+
+
+        <!-- result type settings -->
+        <locale name="quiqqer.search.results.settings.title">
+            <en><![CDATA[Result list settings]]></en>
+        </locale>
+        <locale name="quiqqer.search.results.settings.max">
+            <en><![CDATA[Maximum number of results per page.]]></en>
+        </locale>
+        <locale name="quiqqer.search.results.settings.types">
+            <en><![CDATA[Select the page types to display in your list.]]></en>
+        </locale>
+        <locale name="quiqqer.search.results.settings.search_term">
+            <en><![CDATA[Pre-defined search term]]></en>
+        </locale>
+        <locale name="quiqqer.search.results.settings.search_term.description">
+            <en><![CDATA[Determines the search term that defines the search results. This search term always stays the same. It is treated as if the user had typed it in the search itself.]]></en>
+        </locale>
+
+    </groups>
+
+</locales>
