@@ -406,10 +406,6 @@ class Search
         $selectedFields = ['name', 'title', 'short', 'data'];
         $Edit = $Site->getEdit();
 
-        if (!$Edit instanceof SiteEdit) {
-            throw new QUI\Exception('Could not obtain editable search site.');
-        }
-
         $Edit->setAttribute('quiqqer.settings.search.list.fields', []);
         $Edit->setAttribute('quiqqer.settings.search.list.fields.selected', $selectedFields);
 
@@ -428,10 +424,6 @@ class Search
 
         if (!$Project instanceof Project) {
             $Project = QUI::getProjectManager()->get();
-        }
-
-        if (!$Project instanceof Project) {
-            return;
         }
 
         $result = $Project->getSites([
