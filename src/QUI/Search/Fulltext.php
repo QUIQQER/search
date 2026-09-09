@@ -107,10 +107,6 @@ class Fulltext extends QUI\QDOM
             $Project = QUI::getProjectManager()->get();
         }
 
-        if (!$Project instanceof Project) {
-            throw new QUI\Exception('Fulltext search requires a project context.');
-        }
-
         if (!$attrLimit) {
             $attrLimit = 10;
         }
