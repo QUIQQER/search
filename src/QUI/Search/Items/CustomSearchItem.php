@@ -193,7 +193,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     public function nextSibling(): QUISiteInterface
     {
         throw new QUI\Exception(
-            QUI::getLocale()->get('quiqqer/quiqqer', 'exception.site.no.next.sibling')
+            QUI::getLocale()->get('quiqqer/core', 'exception.site.no.next.sibling')
         );
     }
 
@@ -218,7 +218,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     public function previousSibling(): QUISiteInterface
     {
         throw new QUI\Exception(
-            QUI::getLocale()->get('quiqqer/quiqqer', 'exception.site.no.previous.sibling')
+            QUI::getLocale()->get('quiqqer/core', 'exception.site.no.previous.sibling')
         );
     }
 
@@ -268,7 +268,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     public function getChildIdByName(string $name): int
     {
         throw new QUI\Exception(
-            QUI::getLocale()->get('quiqqer/quiqqer', 'exception.site.child.by.name.not.found', [
+            QUI::getLocale()->get('quiqqer/core', 'exception.site.child.by.name.not.found', [
                 'name' => $name
             ]),
             705
@@ -286,7 +286,7 @@ class CustomSearchItem extends QUI\QDOM implements QUISiteInterface
     public function getChild(int $id): QUISiteInterface
     {
         throw new QUI\Exception(
-            QUI::getLocale()->get('quiqqer/quiqqer', 'exception.site.child.not.found'),
+            QUI::getLocale()->get('quiqqer/core', 'exception.site.child.not.found'),
             705
         );
     }
