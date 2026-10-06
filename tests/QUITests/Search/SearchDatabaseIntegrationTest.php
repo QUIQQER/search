@@ -3,6 +3,7 @@
 namespace QUITests\Search;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use QUI;
@@ -245,6 +246,62 @@ class SearchDatabaseIntegrationTest extends TestCase
 
         self::assertSame(1, (int)$result['count']);
         self::assertSame((string)self::CUSTOM_ID, (string)$result['list'][0]['custom_id']);
+    }
+
+    public function testFulltextTreatsSpecialCharactersAsLiteralSearchInput(): void
+    {
+        if (!$this->Connection->getDatabasePlatform() instanceof AbstractMySQLPlatform) {
+            self::markTestSkipped('Boolean MATCH ... AGAINST is specific to MySQL and MariaDB.');
+        }
+
+        $Item = $this->createCustomItem(self::CUSTOM_ID, 'Search PHPUnit Literal Input');
+        Fulltext::setCustomEntry($this->Project, $Item, [
+            'title' => 'Search PHPUnit Literal Input',
+            'data' => 'literalalpha literalbeta alice literalexample invalid'
+        ]);
+
+        $inputs = [
+            'alice@literalexample.invalid',
+            '++literalalpha --literalbeta',
+            'literalalpha +*',
+            '(literalalpha',
+            '"literalalpha',
+            'literalalpha@literalbeta',
+            'literalalpha-literalbeta'
+        ];
+
+        foreach (['OR', 'AND'] as $searchType) {
+            $Search = new Fulltext([
+                'Project' => $this->Project,
+                'fields' => ['data'],
+                'searchtype' => $searchType,
+                'relevanceSearch' => true,
+                'datatypes' => ['custom']
+            ]);
+
+            foreach ($inputs as $input) {
+                $result = $Search->search($input);
+
+                self::assertSame(1, (int)$result['count'], $searchType . ': ' . $input);
+                self::assertSame((string)self::CUSTOM_ID, (string)$result['list'][0]['custom_id']);
+
+                self::assertArrayHasKey('relevance', $result['list'][0]);
+            }
+
+            $invalidInputs = [
+                '/@fs/home/ec2-user/.aws/credentials?raw??',
+                '/@fs/..%252f..%252f..%252f..%252f..%252froot/.env?raw??',
+                '@@@ ((( ***',
+                "\xFF"
+            ];
+
+            foreach ($invalidInputs as $input) {
+                $result = $Search->search($input);
+
+                self::assertSame(0, (int)$result['count'], $searchType . ': scan or invalid input');
+                self::assertSame([], $result['list']);
+            }
+        }
     }
 
     public function testFulltextIntegerLimitRestrictsResultList(): void

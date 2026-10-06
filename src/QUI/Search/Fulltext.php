@@ -98,7 +98,20 @@ class Fulltext extends QUI\QDOM
      */
     public function search(string $str = ''): array
     {
+        $hasSearchInput = trim($str) !== '';
         $str = $this->sanitizeSearchString($str);
+        $search = Utils::createBooleanSearchString(
+            $str,
+            in_array($this->getAttribute('searchtype'), ['AND', 'and'], true)
+        );
+
+        if ($hasSearchInput && $search === '') {
+            return [
+                'list' => [],
+                'count' => 0
+            ];
+        }
+
         $Project = $this->getAttribute('Project');
         $attrLimit = $this->getAttribute('limit');
         $attrFields = $this->getAttribute('fields');
@@ -110,18 +123,6 @@ class Fulltext extends QUI\QDOM
         if (!$attrLimit) {
             $attrLimit = 10;
         }
-
-        $strParts = explode(' ', $str);
-
-        foreach ($strParts as $key => $part) {
-            $strParts[$key] = '*' . $part . '*';
-        }
-
-        $search = match ($this->getAttribute('searchtype')) {
-            'AND', 'and' => '+' . implode(' +', $strParts),
-            default => implode(' ', $strParts),
-        };
-
 
         // fields
         $fields = [];
@@ -376,7 +377,6 @@ class Fulltext extends QUI\QDOM
             $this->applySearchFilters($query, $datatypeQuery, $whereFieldConstraints, $binds);
             $this->applySearchOrder($query, $order, 'relevance', 'DESC');
 
-            $search = str_replace('*', '', $search);
             $query->setParameter('search', $search);
             $searchMode = 'fulltext';
         } else {
