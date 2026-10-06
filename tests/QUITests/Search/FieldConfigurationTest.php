@@ -10,6 +10,15 @@ use ReflectionClass;
 
 class FieldConfigurationTest extends TestCase
 {
+    public function testFulltextDoesNotQueryForInputWithoutWords(): void
+    {
+        $Search = new Fulltext();
+
+        foreach (['@', '++--()', '***', '"', "\xFF", '... / % _'] as $input) {
+            self::assertSame(['list' => [], 'count' => 0], $Search->search($input));
+        }
+    }
+
     public function testSearchXmlAndFieldListsAreAvailableAndCached(): void
     {
         QUI\Cache\Manager::clear('quiqqer/search/xmlList');
