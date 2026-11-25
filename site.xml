@@ -27,9 +27,6 @@
         <!-- Suche -->
         <type type="types/search" icon="fa fa-search" cache="0">
             <locale group="quiqqer/search" var="admin.types.search"/>
-            <desc>
-                <locale group="quiqqer/search" var="admin.types.search.desc"/>
-            </desc>
 
             <!-- list attributes -->
             <attributes>
@@ -187,9 +184,6 @@
         <!-- Ergebnisliste -->
         <type type="types/results" icon="fa fa-list">
             <locale group="quiqqer/search" var="admin.types.results"/>
-            <desc>
-                <locale group="quiqqer/search" var="admin.types.results.desc"/>
-            </desc>
 
             <attributes>
                 <attribute>quiqqer.settings.results.list.max</attribute>
