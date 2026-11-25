@@ -165,12 +165,6 @@
             <locale name="tpl.search.placeholder">
                 <de><![CDATA[Bitte hier Ihre Suche eingeben...]]></de>
             </locale>
-            <locale name="tpl.search.list.more">
-                <de><![CDATA[mehr]]></de>
-            </locale>
-            <locale name="tpl.search.relevance">
-                <de><![CDATA[Relevanz:]]></de>
-            </locale>
             <locale name="tpl.search.field.searchTypeAnd">
                 <de><![CDATA[UND-Suche]]></de>
             </locale>
@@ -238,9 +232,6 @@
             </locale>
             <locale name="quiqqer.settings.sitetypes.list.showRelevance">
                 <de><![CDATA[Relevanz anzeigen]]></de>
-            </locale>
-            <locale name="quiqqer.search.listTemplate.advancedArticleList">
-                <de><![CDATA[Moderne Liste ohne Bilder]]></de>
             </locale>
             <locale name="search.listTemplate.standardSearch">
                 <de><![CDATA[Standardliste (von search)]]></de>

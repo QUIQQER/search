@@ -157,12 +157,6 @@
             <locale name="tpl.search.placeholder">
                 <pl><![CDATA[Wpisz tutaj zapytanie...]]></pl>
             </locale>
-            <locale name="tpl.search.list.more">
-                <pl><![CDATA[więcej]]></pl>
-            </locale>
-            <locale name="tpl.search.relevance">
-                <pl><![CDATA[Trafność:]]></pl>
-            </locale>
             <locale name="tpl.search.field.searchTypeAnd">
                 <pl><![CDATA[Szukaj wszystkich słów (I)]]></pl>
             </locale>
@@ -230,9 +224,6 @@
             </locale>
             <locale name="quiqqer.settings.sitetypes.list.showRelevance">
                 <pl><![CDATA[Pokaż trafność]]></pl>
-            </locale>
-            <locale name="quiqqer.search.listTemplate.advancedArticleList">
-                <pl><![CDATA[Nowoczesna lista bez obrazków]]></pl>
             </locale>
             <locale name="search.listTemplate.standardSearch">
                 <pl><![CDATA[Standardowa lista (z pakietu search)]]></pl>
